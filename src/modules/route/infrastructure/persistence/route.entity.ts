@@ -1,0 +1,52 @@
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
+import { MasterStatus } from '../../../../common/base/master-data.base.entity';
+
+@Entity('routes')
+@Index(['status'], { where: 'is_deleted = false' })
+@Index(['routeCode', 'companyId'], { unique: true, where: 'is_deleted = false' })
+@Index(['routeName', 'companyId'], { unique: true, where: 'is_deleted = false' })
+export class RouteEntity {
+  @PrimaryColumn({ type: 'uuid', name: 'route_id' })
+  routeId: string;
+
+  @Column({ type: 'varchar', length: 50, name: 'route_code' })
+  routeCode: string;
+
+  @Column({ type: 'varchar', length: 100, name: 'route_name' })
+  routeName: string;
+
+  @Column({ type: 'uuid', name: 'company_id' })
+  companyId: string;
+
+  @Column({ type: 'uuid', name: 'frequency_id', nullable: true })
+  frequencyId: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: MasterStatus.ACTIVE,
+  })
+  status: MasterStatus;
+
+  @Column({ type: 'uuid', name: 'created_by', nullable: true })
+  createdBy: string | null;
+
+  @CreateDateColumn({ type: 'timestamp', name: 'created_on' })
+  createdOn: Date;
+
+  @Column({ type: 'uuid', name: 'modified_by', nullable: true })
+  modifiedBy: string | null;
+
+  @UpdateDateColumn({ type: 'timestamp', name: 'modified_on' })
+  modifiedOn: Date;
+
+  @Column({ type: 'boolean', default: false, name: 'is_deleted' })
+  isDeleted: boolean;
+}

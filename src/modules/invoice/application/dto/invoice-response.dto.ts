@@ -1,0 +1,42 @@
+import { InvoiceStatus, BillingType, BillingOption, InvoiceGenerationType } from '../../infrastructure/transaction/invoice.entity';
+
+export class InvoiceResponseDto {
+  invoiceId: string;
+  companyId: string;
+  companyName?: string;
+  hcfId: string;
+  hcfCode?: string;
+  hcfName?: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string;
+  billingType: BillingType;
+  billingDays: number | null;
+  billingOption: BillingOption;
+  generationType: InvoiceGenerationType;
+  bedCount: number | null;
+  bedRate: number | null;
+  weightInKg: number | null;
+  kgRate: number | null;
+  lumpsumAmount: number | null;
+  taxableValue: number;
+  igst: number;
+  cgst: number;
+  sgst: number;
+  roundOff: number;
+  invoiceValue: number;
+  totalPaidAmount: number;
+  balanceAmount: number;
+  status: InvoiceStatus;
+  isLocked: boolean;
+  lockedAfterDate: string | null;
+  financialYear: string;
+  sequenceNumber: number;
+  billingPeriodStart: string | null;
+  billingPeriodEnd: string | null;
+  notes: string | null;
+  createdBy: string | null;
+  createdOn: string;
+  modifiedBy: string | null;
+  modifiedOn: string;
+}
