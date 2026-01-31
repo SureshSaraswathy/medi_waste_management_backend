@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException, NotFoundException, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException, NotFoundException, Get, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -67,6 +67,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async sendOtp(@Body() sendOtpDto: SendOtpDto) {
     try {
+      const appConfig = this.configService.get('app');
+      const otpGloballyEnabled = appConfig?.otp?.enabled || false;
+      if (!otpGloballyEnabled) {
+        throw new BadRequestException('OTP is disabled (OTP_ENABLED=false)');
+      }
+
       const normalizedInput = sendOtpDto.usernameOrEmail.trim().toLowerCase();
       const isSuperAdmin = 
         normalizedInput === this.superAdminConfig.username.toLowerCase() ||
@@ -136,6 +142,11 @@ export class AuthController {
         throw new NotFoundException('User not found');
       }
 
+      // Per-user OTP flag must be enabled to send OTP
+      if (!user.otpEnabled) {
+        throw new BadRequestException('OTP is not enabled for this user');
+      }
+
       if (!userEmail) {
         throw new NotFoundException('Email address not found for this user. Please contact administrator.');
       }
@@ -171,6 +182,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
     try {
+      const appConfig = this.configService.get('app');
+      const otpGloballyEnabled = appConfig?.otp?.enabled || false;
+      if (!otpGloballyEnabled) {
+        throw new BadRequestException('OTP is disabled (OTP_ENABLED=false)');
+      }
+
       const normalizedInput = verifyOtpDto.usernameOrEmail.trim().toLowerCase();
       const isSuperAdmin = 
         normalizedInput === this.superAdminConfig.username.toLowerCase() ||

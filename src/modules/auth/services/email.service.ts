@@ -17,14 +17,26 @@ export class EmailService {
 
   constructor(private readonly configService: ConfigService) {
     const emailConfig = this.configService.get('app.email');
-    this.emailEnabled = emailConfig?.enabled || false;
+
+    // Enable email only when SMTP is actually configured.
+    // This avoids "enabled but empty creds" and auto-enables when user+pass are present.
+    const smtpHost = emailConfig?.host || '';
+    const smtpUser = emailConfig?.auth?.user || '';
+    const smtpPass = emailConfig?.auth?.pass || '';
+    const hasSmtpConfig = !!smtpHost && !!smtpUser && !!smtpPass;
+
+    this.emailEnabled = !!emailConfig?.enabled && hasSmtpConfig;
     this.emailFrom = emailConfig?.from || 'noreply@medi-waste.io';
     this.emailFromName = emailConfig?.fromName || 'Medi Waste Management System';
 
     if (this.emailEnabled) {
       this.initializeTransporter();
     } else {
-      this.logger.warn('Email service is disabled. Set EMAIL_ENABLED=true to enable.');
+      if (!emailConfig?.enabled) {
+        this.logger.warn('Email service is disabled. Set EMAIL_ENABLED=true (and SMTP_* variables) to enable.');
+      } else {
+        this.logger.warn('Email service is disabled because SMTP is not fully configured (SMTP_HOST/SMTP_USER/SMTP_PASSWORD).');
+      }
     }
   }
 

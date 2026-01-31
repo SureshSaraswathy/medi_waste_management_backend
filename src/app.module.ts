@@ -35,6 +35,7 @@ import { InvoiceModule } from './modules/invoice/invoice.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { FinBalanceModule } from './modules/fin-balance/fin-balance.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthController } from './common/controllers/health.controller';
 
 @Module({
@@ -68,18 +69,17 @@ import { HealthController } from './common/controllers/health.controller';
     }),
     
     // Report Database Connection - For reporting/analytics data
-    // Commented out for now - uncomment when needed
-    // TypeOrmModule.forRootAsync({
-    //   name: 'report',
-    //   inject: [ConfigService],
-    //   useFactory: (configService: ConfigService) => {
-    //     const dbConfig = configService.get('reportDatabase');
-    //     if (!dbConfig) {
-    //       throw new Error('Report database configuration is missing');
-    //     }
-    //     return dbConfig;
-    //   },
-    // }),
+    TypeOrmModule.forRootAsync({
+      name: 'report',
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const dbConfig = configService.get('reportDatabase');
+        if (!dbConfig) {
+          throw new Error('Report database configuration is missing');
+        }
+        return dbConfig;
+      },
+    }),
     
     SampleModule,
     UserModule,
@@ -114,6 +114,7 @@ import { HealthController } from './common/controllers/health.controller';
     PaymentModule,
     FinBalanceModule,
     ReportsModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
 })

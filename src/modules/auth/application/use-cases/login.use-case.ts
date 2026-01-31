@@ -192,9 +192,13 @@ export class LoginUseCase {
     }
 
     // Check if user has OTP enabled - only ask for OTP if user.otpEnabled is true
-    // This is user-specific, not global setting
+    // OTP is controlled by a global master switch (OTP_ENABLED) AND an optional per-user flag.
+    // - If OTP is globally disabled: never require OTP.
+    // - If OTP is globally enabled: require OTP only if the user has otpEnabled=true.
+    const appConfig = this.configService.get('app');
+    const otpGloballyEnabled = appConfig?.otp?.enabled || false;
     const userOtpEnabled = user.otpEnabled || false;
-    const requiresOTP = userOtpEnabled;
+    const requiresOTP = otpGloballyEnabled && userOtpEnabled;
 
     // Load user permissions
     const permissions = await this.permissionService.loadUserPermissions(

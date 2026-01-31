@@ -13,11 +13,17 @@ export default registerAs('app', () => ({
     email: process.env.SUPER_ADMIN_EMAIL || 'superadmin@medi-waste.io',
   },
   email: {
-    enabled: process.env.EMAIL_ENABLED === 'true' || false,
+    // Enabled if explicitly turned on OR if SMTP credentials are configured.
+    // This prevents accidental "enabled but not configured" states.
+    enabled:
+      process.env.EMAIL_ENABLED === 'true' ||
+      (!!process.env.SMTP_USER && !!process.env.SMTP_PASSWORD && !!process.env.SMTP_HOST) ||
+      false,
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
     secure: process.env.SMTP_SECURE === 'true' || false, // true for 465, false for other ports
     auth: {
+      // Do NOT provide default credentials in code. Configure via environment variables.
       user: process.env.SMTP_USER || '',
       pass: process.env.SMTP_PASSWORD || '',
     },

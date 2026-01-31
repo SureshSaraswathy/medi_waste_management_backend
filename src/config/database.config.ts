@@ -31,6 +31,7 @@ import { WasteTransactionEntity } from '../modules/waste-transaction/infrastruct
 import { VehicleWasteCollectionEntity } from '../modules/vehicle-waste-collection/infrastructure/transaction/vehicle-waste-collection.entity';
 import { WasteProcessEntity } from '../modules/waste-process/infrastructure/transaction/waste-process.entity';
 import { InvoiceEntity } from '../modules/invoice/infrastructure/transaction/invoice.entity';
+import { DashboardConfigEntity } from '../modules/dashboard/entities/dashboard-config.entity';
 
 // Master Database Config - For reference/master data
 export const masterDatabaseConfig = registerAs(
@@ -120,7 +121,13 @@ export const reportDatabaseConfig = registerAs(
     username: process.env.REPORT_DB_USERNAME || process.env.DB_USERNAME || 'postgres',
     password: process.env.REPORT_DB_PASSWORD || process.env.DB_PASSWORD || 'postgres',
     database: process.env.REPORT_DB_DATABASE || 'medi_waste_management_report',
-    entities: [__dirname + '/../modules/**/report/**/*.entity{.ts,.js}'],
+    entities: [
+      // Explicitly import dashboard config entity
+      DashboardConfigEntity,
+      // Also include glob patterns as fallback
+      __dirname + '/../modules/**/report/**/*.entity{.ts,.js}',
+      __dirname + '/../modules/dashboard/entities/*.entity{.ts,.js}',
+    ],
     synchronize: process.env.REPORT_DB_SYNCHRONIZE === 'true',
     logging: process.env.REPORT_DB_LOGGING === 'true',
     migrations: [__dirname + '/../database/migrations/report/*{.ts,.js}'],
