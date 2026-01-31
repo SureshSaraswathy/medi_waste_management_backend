@@ -2,7 +2,6 @@
 -- User Management System - Complete Database Schema
 -- Master Database Migration
 -- =====================================================
-
 -- 1. Companies table (Master Data)
 CREATE TABLE IF NOT EXISTS companies (
   company_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

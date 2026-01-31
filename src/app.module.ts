@@ -34,6 +34,7 @@ import { WasteProcessModule } from './modules/waste-process/waste-process.module
 import { InvoiceModule } from './modules/invoice/invoice.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { FinBalanceModule } from './modules/fin-balance/fin-balance.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { HealthController } from './common/controllers/health.controller';
 
 @Module({
@@ -112,6 +113,7 @@ import { HealthController } from './common/controllers/health.controller';
     InvoiceModule,
     PaymentModule,
     FinBalanceModule,
+    ReportsModule,
   ],
   controllers: [HealthController],
 })
