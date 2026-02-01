@@ -369,99 +369,118 @@ export class AuthController {
       const isSuperAdmin = permissions.includes('*');
 
       // Menu configuration with permission requirements
+      // IMPORTANT:
+      // - This endpoint is UI-focused (what to show in the sidebar).
+      // - It must NOT "over-allow" based on broad substring matches (e.g. p.includes('_VIEW')),
+      //   because that makes menus appear even when role_permissions is empty.
+      // - We compute visibility from explicit permission codes only.
+      const has = (code: string) => isSuperAdmin || permissions.includes(code);
+      const hasAny = (codes: string[]) => isSuperAdmin || codes.some((c) => permissions.includes(c));
+
       const menuConfig = {
         dashboard: {
-          visible: isSuperAdmin || permissions.some(p => p.includes('VIEW') || p.includes('HOME')),
-          permission: 'HOME_VIEW',
+          // Always allow dashboard shell for any authenticated user (landing page).
+          // Widgets/APIs remain protected by their own guards.
+          visible: true,
+          permission: 'DASHBOARD_VIEW',
         },
         transaction: {
-          visible: isSuperAdmin || permissions.some(p => 
-            p.includes('TRANSACTION') || 
-            p.includes('ROUTE_ASSIGNMENT') || 
-            p.includes('WASTE_COLLECTION') ||
-            p.includes('WASTE_TRANSACTION')
-          ),
-          permission: 'TRANSACTION_VIEW',
+          visible: hasAny([
+            'MENU_TRANSACTION_VIEW',
+            'ROUTE_ASSIGNMENT_VIEW',
+            'BARCODE_LABEL_VIEW',
+            'WASTE_COLLECTION_VIEW',
+            'WASTE_TRANSACTION_VIEW',
+            'VEHICLE_WASTE_COLLECTION_VIEW',
+            'WASTE_PROCESS_VIEW',
+          ]),
+          permission: 'MENU_TRANSACTION_VIEW',
         },
         finance: {
-          visible: isSuperAdmin || permissions.some(p => p.includes('FINANCE') || p.includes('BILLING')),
+          visible: hasAny(['FINANCE_VIEW', 'MENU_FINANCE_VIEW', 'INVOICE_VIEW']),
           permission: 'FINANCE_VIEW',
         },
         commercialAgreements: {
-          visible: isSuperAdmin || permissions.some(p => 
-            p.includes('CONTRACT') || 
-            p.includes('AGREEMENT')
-          ),
-          permission: 'AGREEMENT_VIEW',
+          visible: hasAny(['MENU_COMMERCIAL_VIEW', 'CONTRACT_VIEW', 'AGREEMENT_VIEW', 'AGREEMENT_CLAUSE_VIEW']),
+          permission: 'MENU_COMMERCIAL_VIEW',
         },
         complianceTraining: {
-          visible: isSuperAdmin || permissions.some(p => 
-            p.includes('TRAINING') || 
-            p.includes('COMPLIANCE')
-          ),
-          permission: 'TRAINING_CERTIFICATE_VIEW',
+          visible: hasAny(['MENU_COMPLIANCE_VIEW', 'TRAINING_CERTIFICATE_VIEW']),
+          permission: 'MENU_COMPLIANCE_VIEW',
         },
         master: {
-          visible: isSuperAdmin || permissions.some(p => 
-            p.includes('MASTER') || 
-            p.includes('_VIEW') ||
-            p.includes('_CREATE')
-          ),
-          permission: 'MASTERS_VIEW',
+          visible: hasAny([
+            'MENU_MASTER_VIEW',
+            'COMPANY_VIEW',
+            'STATE_VIEW',
+            'AREA_VIEW',
+            'CATEGORY_VIEW',
+            'COLOR_VIEW',
+            'PCB_ZONE_VIEW',
+            'FREQUENCY_VIEW',
+            'HCF_TYPE_VIEW',
+            'HCF_VIEW',
+            'ROUTE_VIEW',
+            'FLEET_VIEW',
+            'ROUTE_HCF_VIEW',
+            'USER_VIEW',
+            'ROLE_VIEW',
+          ]),
+          permission: 'MENU_MASTER_VIEW',
           submenus: {
             company: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('COMPANY')),
+              visible: has('COMPANY_VIEW'),
               permission: 'COMPANY_VIEW',
             },
             state: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('STATE')),
+              visible: has('STATE_VIEW'),
               permission: 'STATE_VIEW',
             },
             area: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('AREA')),
+              visible: has('AREA_VIEW'),
               permission: 'AREA_VIEW',
             },
             category: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('CATEGORY')),
+              visible: has('CATEGORY_VIEW'),
               permission: 'CATEGORY_VIEW',
             },
             color: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('COLOR')),
+              visible: has('COLOR_VIEW'),
               permission: 'COLOR_VIEW',
             },
             pcbZone: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('PCB_ZONE')),
+              visible: has('PCB_ZONE_VIEW'),
               permission: 'PCB_ZONE_VIEW',
             },
             frequency: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('FREQUENCY')),
+              visible: has('FREQUENCY_VIEW'),
               permission: 'FREQUENCY_VIEW',
             },
             hcfType: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('HCF_TYPE')),
+              visible: has('HCF_TYPE_VIEW'),
               permission: 'HCF_TYPE_VIEW',
             },
             hcf: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('HCF')),
+              visible: has('HCF_VIEW'),
               permission: 'HCF_VIEW',
             },
             route: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('ROUTE')),
+              visible: has('ROUTE_VIEW'),
               permission: 'ROUTE_VIEW',
             },
             fleet: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('FLEET')),
+              visible: has('FLEET_VIEW'),
               permission: 'FLEET_VIEW',
             },
             routeHcfMapping: {
-              visible: isSuperAdmin || permissions.some(p => p.includes('ROUTE_HCF')),
+              visible: has('ROUTE_HCF_VIEW'),
               permission: 'ROUTE_HCF_VIEW',
             },
           },
         },
         report: {
-          visible: isSuperAdmin || permissions.some(p => p.includes('REPORT')),
-          permission: 'REPORTS_VIEW',
+          visible: hasAny(['MENU_REPORTS_VIEW', 'REPORTS_VIEW']),
+          permission: 'MENU_REPORTS_VIEW',
         },
       };
 

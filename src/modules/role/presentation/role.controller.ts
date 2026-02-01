@@ -55,8 +55,15 @@ export class RoleController {
 
   @Get()
   @RequirePermissions('ROLE_VIEW')
-  async findAll(@Query('companyId') companyId?: string, @Query('activeOnly') activeOnly?: string) {
-    const roles = await this.getAllRolesUseCase.execute(companyId, activeOnly === 'true');
+  async findAll(
+    @Query('companyId') companyId?: string,
+    @Query('activeOnly') activeOnly?: string,
+    @Request() req?: any,
+  ) {
+    // Roles are company-specific in this project.
+    // If client doesn't pass companyId, default to the authenticated user's companyId (additive, non-breaking).
+    const effectiveCompanyId = companyId || req?.user?.companyId;
+    const roles = await this.getAllRolesUseCase.execute(effectiveCompanyId, activeOnly === 'true');
     return {
       success: true,
       data: roles.map((r) => this.toResponseDto(r)),

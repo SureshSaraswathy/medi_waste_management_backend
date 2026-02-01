@@ -4,7 +4,13 @@ export default registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3000', 10),
   appName: process.env.APP_NAME || 'medi-waste-management-backend',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  // CORS:
+  // - If CORS_ORIGIN is provided, we respect it (supports single origin or comma-separated list in main.ts).
+  // - Otherwise, in development we allow any origin (main.ts treats '*' / empty as "reflect origin").
+  //   This avoids common local dev issues like using 127.0.0.1 vs localhost or different Vite ports.
+  corsOrigin:
+    process.env.CORS_ORIGIN ||
+    ((process.env.NODE_ENV || 'development') === 'production' ? 'http://localhost:5173' : '*'),
   superAdmin: {
     username: process.env.SUPER_ADMIN_USERNAME || 'superadmin',
     password: process.env.SUPER_ADMIN_PASSWORD || 'admin123',
