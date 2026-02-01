@@ -142,11 +142,6 @@ export class AuthController {
         throw new NotFoundException('User not found');
       }
 
-      // Per-user OTP flag must be enabled to send OTP
-      if (!user.otpEnabled) {
-        throw new BadRequestException('OTP is not enabled for this user');
-      }
-
       if (!userEmail) {
         throw new NotFoundException('Email address not found for this user. Please contact administrator.');
       }
@@ -159,8 +154,8 @@ export class AuthController {
       const emailSent = await this.emailService.sendOTPEmail(userEmail, otp, userName || undefined);
 
       if (!emailSent) {
-        // If email sending fails, still return success but log the OTP (for development)
-        console.warn(`[OTP] Email sending failed. OTP for ${userEmail}: ${otp}`);
+        // Do not log OTP values.
+        console.warn(`[OTP] Email sending failed for ${userEmail}`);
       }
 
       return {

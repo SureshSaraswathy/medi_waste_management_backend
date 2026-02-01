@@ -66,7 +66,8 @@ export class EmailService {
    */
   async sendOTPEmail(to: string, otp: string, userName?: string): Promise<boolean> {
     if (!this.emailEnabled) {
-      this.logger.warn(`Email service is disabled. OTP for ${to}: ${otp}`);
+      // Do not log OTP values.
+      this.logger.warn(`Email service is disabled. OTP email not sent for ${to}.`);
       return false;
     }
 

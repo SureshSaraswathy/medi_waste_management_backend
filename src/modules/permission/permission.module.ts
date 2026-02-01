@@ -6,6 +6,7 @@ import { AuthModule } from '../auth/auth.module';
 import { PermissionEntity } from './infrastructure/persistence/permission.entity';
 import { RolePermissionEntity } from './infrastructure/persistence/role-permission.entity';
 import { RoleEntity } from '../role/infrastructure/persistence/role.entity';
+import { PermissionsController } from './presentation/permissions.controller';
 
 /**
  * Permission Module - Clean Architecture Structure
@@ -15,7 +16,7 @@ import { RoleEntity } from '../role/infrastructure/persistence/role.entity';
     TypeOrmModule.forFeature([PermissionEntity, RolePermissionEntity, RoleEntity], 'master'),
     AuthModule,
   ],
-  controllers: [],
+  controllers: [PermissionsController],
   providers: [],
   exports: [],
 })

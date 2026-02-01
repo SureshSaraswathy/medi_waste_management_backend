@@ -191,14 +191,16 @@ export class LoginUseCase {
       email = profile?.emailAddress || undefined;
     }
 
-    // Check if user has OTP enabled - only ask for OTP if user.otpEnabled is true
-    // OTP is controlled by a global master switch (OTP_ENABLED) AND an optional per-user flag.
-    // - If OTP is globally disabled: never require OTP.
-    // - If OTP is globally enabled: require OTP only if the user has otpEnabled=true.
+    // OTP is controlled by a global master switch (OTP_ENABLED).
+    // If OTP is enabled globally, require OTP for all users.
     const appConfig = this.configService.get('app');
     const otpGloballyEnabled = appConfig?.otp?.enabled || false;
-    const userOtpEnabled = user.otpEnabled || false;
-    const requiresOTP = otpGloballyEnabled && userOtpEnabled;
+    const requiresOTP = otpGloballyEnabled;
+
+    // If OTP is required, we must have an email to deliver the OTP.
+    if (requiresOTP && !email) {
+      throw new UnauthorizedException('Email address not found for this user. Please contact administrator.');
+    }
 
     // Load user permissions
     const permissions = await this.permissionService.loadUserPermissions(

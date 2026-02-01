@@ -26,10 +26,26 @@ async function bootstrap() {
   app.useGlobalFilters(new CustomExceptionFilter());
 
   // CORS configuration
-  app.enableCors({
-    origin: appConfig.corsOrigin,
-    credentials: true,
-  });
+  // Support:
+  // - single origin string: "http://localhost:5173"
+  // - comma-separated list: "http://localhost:5173,http://192.168.1.10:5173"
+  // - "*" (dev): reflect request origin (safe with credentials)
+  const corsOriginRaw = appConfig.corsOrigin;
+  const origin =
+    corsOriginRaw === '*' || !corsOriginRaw
+      ? true
+      : typeof corsOriginRaw === 'string' && corsOriginRaw.includes(',')
+        ? (requestOrigin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+            if (!requestOrigin) return cb(null, true);
+            const allowed = corsOriginRaw
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean);
+            return cb(null, allowed.includes(requestOrigin));
+          }
+        : corsOriginRaw;
+
+  app.enableCors({ origin, credentials: true });
 
   // Global prefix for all routes
   app.setGlobalPrefix('api/v1');
