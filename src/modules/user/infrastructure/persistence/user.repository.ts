@@ -26,10 +26,20 @@ export class UserRepository implements IUserRepository {
   }
 
   async findById(userId: string): Promise<User | null> {
-    const entity = await this.repository.findOne({
-      where: { userId: userId, isDeleted: false } as any,
-    });
+    const entity = await this.findEntityById(userId, false);
     return entity ? this.toDomain(entity) : null;
+  }
+
+  /**
+   * Internal helper to fetch users with an option to include soft-deleted rows.
+   * Important for flows like "soft delete", where `isDeleted` becomes true and
+   * we still need to read the record back after `update()` without failing.
+   */
+  private async findEntityById(userId: string, includeDeleted: boolean): Promise<UserEntity | null> {
+    if (includeDeleted) {
+      return this.repository.findOne({ where: { userId } as any });
+    }
+    return this.repository.findOne({ where: { userId, isDeleted: false } as any });
   }
 
   async findByMobile(companyId: string, mobileNumber: string): Promise<User | null> {
@@ -57,11 +67,13 @@ export class UserRepository implements IUserRepository {
   async update(userId: string, user: User): Promise<User> {
     const entity = this.toEntity(user);
     await this.repository.update(userId, entity);
-    const updated = await this.findById(userId);
-    if (!updated) {
-      throw new Error('User not found after update');
-    }
-    return updated;
+
+    // NOTE:
+    // `findById()` filters by `isDeleted=false`. For soft-delete flows, the updated
+    // record will not be returned by `findById()` anymore. So we fetch including deleted.
+    const updatedEntity = await this.findEntityById(userId, true);
+    if (!updatedEntity) throw new Error('User not found after update');
+    return this.toDomain(updatedEntity);
   }
 
   async delete(userId: string): Promise<void> {
