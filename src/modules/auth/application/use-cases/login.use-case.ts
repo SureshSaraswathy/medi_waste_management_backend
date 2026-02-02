@@ -191,11 +191,15 @@ export class LoginUseCase {
       email = profile?.emailAddress || undefined;
     }
 
-    // OTP is controlled by a global master switch (OTP_ENABLED).
-    // If OTP is enabled globally, require OTP for all users.
+    // OTP control:
+    // - Global master switch (OTP_ENABLED) must be enabled.
+    // - Per-user flags decide whether OTP is required for that user.
+    //   - otpEnabled: user opted into OTP
+    //   - forceOtpOnNextLogin: one-time forced OTP (e.g., after admin action)
     const appConfig = this.configService.get('app');
     const otpGloballyEnabled = appConfig?.otp?.enabled || false;
-    const requiresOTP = otpGloballyEnabled;
+    const userRequiresOtp = Boolean(user.otpEnabled || user.forceOtpOnNextLogin);
+    const requiresOTP = otpGloballyEnabled && userRequiresOtp;
 
     // If OTP is required, we must have an email to deliver the OTP.
     if (requiresOTP && !email) {
