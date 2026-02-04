@@ -57,16 +57,13 @@ export class PermissionsController {
       throw new UnauthorizedException('User not authenticated');
     }
 
-    // Prefer permissions already present in JWT payload if available.
-    const fromToken: string[] | undefined = Array.isArray(user.permissions) ? user.permissions : undefined;
-    if (fromToken) {
-      return { success: true, data: fromToken, message: 'Permissions retrieved successfully' };
-    }
+    // Tokens use `userRoleId` in this codebase; keep backward compatibility with `roleId`.
+    const roleId: string | null = user.userRoleId ?? user.roleId ?? null;
 
     // Fallback: reload from DB using existing tables (roles/role_permissions/permissions)
     const permissions = await this.permissionService.loadUserPermissions(
       user.userId,
-      user.roleId || null,
+      roleId,
       user.email,
       user.userName,
     );
@@ -180,6 +177,9 @@ export class PermissionsController {
       // Clear mappings
       await this.rolePermissionRepo.delete({ roleId } as any);
     }
+
+    // Clear cached permissions for this role so changes reflect immediately.
+    this.permissionService.clearRoleCache(roleId);
 
     return { success: true, data: normalized, message: 'Role permissions updated successfully' };
   }

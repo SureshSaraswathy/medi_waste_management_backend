@@ -326,10 +326,14 @@ export class AuthController {
         throw new UnauthorizedException('User not authenticated');
       }
 
+      // Tokens in this codebase use `userRoleId` in the JWT payload.
+      // Some older payloads may use `roleId`, so we support both.
+      const roleId: string | null = user.userRoleId ?? user.roleId ?? null;
+
       // Load permissions for the user
       const permissions = await this.permissionService.loadUserPermissions(
         user.userId,
-        user.roleId || null,
+        roleId,
         user.email,
         user.userName,
       );
@@ -358,10 +362,12 @@ export class AuthController {
         throw new UnauthorizedException('User not authenticated');
       }
 
+      const roleId: string | null = user.userRoleId ?? user.roleId ?? null;
+
       // Load permissions for the user
       const permissions = await this.permissionService.loadUserPermissions(
         user.userId,
-        user.roleId || null,
+        roleId,
         user.email,
         user.userName,
       );

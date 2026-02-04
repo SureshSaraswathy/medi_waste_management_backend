@@ -154,4 +154,17 @@ export class PermissionService {
       }
     }
   }
+
+  /**
+   * Clear cached permissions for all users of a given role.
+   * Call this after updating role_permissions mappings.
+   */
+  clearRoleCache(roleId: string): void {
+    for (const key of this.permissionCache.keys()) {
+      if (key.endsWith(`:${roleId}`)) {
+        this.permissionCache.delete(key);
+        this.cacheTimestamps.delete(key);
+      }
+    }
+  }
 }
