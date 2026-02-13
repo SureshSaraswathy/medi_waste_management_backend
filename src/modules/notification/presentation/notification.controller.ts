@@ -16,13 +16,13 @@ export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
   @Get('my')
-  async getMyNotifications(@Request() req) {
+  async getMyNotifications(@Request() req: any) {
     const userId = req.user?.userId || req.user?.id;
     return this.notificationService.getMyNotifications(userId);
   }
 
   @Get('unread-count')
-  async getUnreadCount(@Request() req) {
+  async getUnreadCount(@Request() req: any) {
     const userId = req.user?.userId || req.user?.id;
     return {
       count: await this.notificationService.getUnreadCount(userId),
@@ -36,7 +36,7 @@ export class NotificationController {
   }
 
   @Post('read-all')
-  async markAllAsRead(@Request() req) {
+  async markAllAsRead(@Request() req: any) {
     const userId = req.user?.userId || req.user?.id;
     await this.notificationService.markAllAsRead(userId);
     return { success: true };
