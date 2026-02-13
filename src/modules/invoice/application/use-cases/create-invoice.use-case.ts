@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { IInvoiceRepository, INVOICE_REPOSITORY_TOKEN } from '../../domain/interfaces/invoice.repository.interface';
 import { IHcfRepository, HCF_REPOSITORY_TOKEN } from '../../../hcf/domain/interfaces/hcf.repository.interface';
@@ -8,6 +8,9 @@ import { CreateInvoiceDto } from '../dto/create-invoice.dto';
 import { InvoiceNumberService } from '../services/invoice-number.service';
 import { InvoiceCalculationService } from '../services/invoice-calculation.service';
 import { InvoiceLockService } from '../services/invoice-lock.service';
+import { NotificationHelperService } from '../../../notification/notification-helper.service';
+import { NotificationType } from '../../../notification/infrastructure/persistence/notification.entity';
+import { NotificationPriority } from '../../../notification/infrastructure/persistence/notification-receiver.entity';
 import { DuplicateInvoiceException, InvalidInvoiceDataException } from '../../domain/exceptions/invoice.exceptions';
 import { HcfNotFoundException } from '../../../hcf/domain/exceptions/hcf.exceptions';
 import { CompanyNotFoundException } from '../../../company/domain/exceptions/company.exceptions';
@@ -25,6 +28,8 @@ export class CreateInvoiceUseCase {
     private readonly invoiceNumberService: InvoiceNumberService,
     private readonly invoiceCalculationService: InvoiceCalculationService,
     private readonly invoiceLockService: InvoiceLockService,
+    @Inject(forwardRef(() => NotificationHelperService))
+    private readonly notificationHelper: NotificationHelperService,
   ) {}
 
   async execute(createInvoiceDto: CreateInvoiceDto, createdBy?: string): Promise<Invoice> {
@@ -113,7 +118,44 @@ export class CreateInvoiceUseCase {
     this.invoiceLockService.checkAndLockInvoice(invoice);
 
     // Save invoice
-    return await this.invoiceRepository.create(invoice);
+    const savedInvoice = await this.invoiceRepository.create(invoice);
+
+    // Trigger notifications
+    await this.triggerInvoiceNotifications(savedInvoice, createdBy);
+
+    return savedInvoice;
+  }
+
+  private async triggerInvoiceNotifications(
+    invoice: Invoice,
+    createdBy?: string,
+  ): Promise<void> {
+    try {
+      // Accountant creates invoice → Manager gets approval notification
+      // Note: In production, resolve role names to IDs using RoleRepository
+      const managerRoleIds: string[] = []; // TODO: Resolve 'Manager' role IDs
+      const accountantUserIds: string[] = []; // TODO: Get Accountant user IDs
+
+      await this.notificationHelper.notifyRoles(
+        'Invoice Created - Approval Required',
+        `Invoice ${invoice.invoiceNumber} created for ${invoice.hcfId}. Amount: ₹${invoice.invoiceValue.toFixed(2)}`,
+        'invoice',
+        managerRoleIds,
+        {
+          referenceId: invoice.invoiceId,
+          type: NotificationType.APPROVAL,
+          priority: NotificationPriority.MEDIUM,
+          createdBy,
+        },
+      );
+
+      // Payment pending → Notify Accountant + Manager
+      // This would be triggered when invoice status changes to pending payment
+      // For now, we'll add it here as an example
+    } catch (error) {
+      // Log error but don't fail the invoice creation
+      console.error('Failed to send invoice notifications:', error);
+    }
   }
 
   private validateBillingData(dto: CreateInvoiceDto): void {

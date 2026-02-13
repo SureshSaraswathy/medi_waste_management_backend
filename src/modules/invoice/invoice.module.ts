@@ -18,6 +18,7 @@ import { INVOICE_REPOSITORY_TOKEN } from './domain/interfaces/invoice.repository
 import { HcfModule } from '../hcf/hcf.module';
 import { CompanyModule } from '../company/company.module';
 import { WasteTransactionModule } from '../waste-transaction/waste-transaction.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { WasteTransactionModule } from '../waste-transaction/waste-transaction.m
     HcfModule,
     CompanyModule,
     WasteTransactionModule,
+    NotificationModule,
   ],
   controllers: [InvoiceController],
   providers: [

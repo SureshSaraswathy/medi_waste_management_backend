@@ -31,6 +31,14 @@ import { WasteTransactionEntity } from '../modules/waste-transaction/infrastruct
 import { VehicleWasteCollectionEntity } from '../modules/vehicle-waste-collection/infrastructure/transaction/vehicle-waste-collection.entity';
 import { WasteProcessEntity } from '../modules/waste-process/infrastructure/transaction/waste-process.entity';
 import { InvoiceEntity } from '../modules/invoice/infrastructure/transaction/invoice.entity';
+import { IncidentRegisterEntity } from '../modules/incident-register/infrastructure/transaction/incident-register.entity';
+import { IncinerationRegisterEntity } from '../modules/incineration-register/infrastructure/transaction/incineration-register.entity';
+import { AutoclaveRegisterEntity } from '../modules/autoclave-register/infrastructure/transaction/autoclave-register.entity';
+import { ShredderRegisterEntity } from '../modules/shredder-register/infrastructure/transaction/shredder-register.entity';
+import { DisposalRegisterEntity } from '../modules/disposal-register/infrastructure/transaction/disposal-register.entity';
+import { EmissionRegisterEntity } from '../modules/emission-register/infrastructure/transaction/emission-register.entity';
+import { ETPRegisterEntity } from '../modules/etp-register/infrastructure/transaction/etp-register.entity';
+import { DowntimeRegisterEntity } from '../modules/downtime-register/infrastructure/transaction/downtime-register.entity';
 import { DashboardConfigEntity } from '../modules/dashboard/entities/dashboard-config.entity';
 
 // Master Database Config - For reference/master data
@@ -99,6 +107,14 @@ export const transactionDatabaseConfig = registerAs(
       VehicleWasteCollectionEntity,
       WasteProcessEntity,
       InvoiceEntity,
+      IncidentRegisterEntity,
+      IncinerationRegisterEntity,
+      AutoclaveRegisterEntity,
+      ShredderRegisterEntity,
+      DisposalRegisterEntity,
+      EmissionRegisterEntity,
+      ETPRegisterEntity,
+      DowntimeRegisterEntity,
       // Also include glob patterns as fallback
       __dirname + '/../modules/**/transaction/**/*.entity{.ts,.js}',
       __dirname + '/../modules/**/infrastructure/transaction/**/*.entity{.ts,.js}',

@@ -36,6 +36,15 @@ import { PaymentModule } from './modules/payment/payment.module';
 import { FinBalanceModule } from './modules/fin-balance/fin-balance.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { IncidentRegisterModule } from './modules/incident-register/incident-register.module';
+import { IncinerationRegisterModule } from './modules/incineration-register/incineration-register.module';
+import { AutoclaveRegisterModule } from './modules/autoclave-register/autoclave-register.module';
+import { ShredderRegisterModule } from './modules/shredder-register/shredder-register.module';
+import { DisposalRegisterModule } from './modules/disposal-register/disposal-register.module';
+import { EmissionRegisterModule } from './modules/emission-register/emission-register.module';
+import { ETPRegisterModule } from './modules/etp-register/etp-register.module';
+import { DowntimeRegisterModule } from './modules/downtime-register/downtime-register.module';
+import { NotificationModule } from './modules/notification/notification.module';
 import { HealthController } from './common/controllers/health.controller';
 
 @Module({
@@ -115,6 +124,15 @@ import { HealthController } from './common/controllers/health.controller';
     FinBalanceModule,
     ReportsModule,
     DashboardModule,
+    IncidentRegisterModule,
+    IncinerationRegisterModule,
+    AutoclaveRegisterModule,
+    ShredderRegisterModule,
+    DisposalRegisterModule,
+    EmissionRegisterModule,
+    ETPRegisterModule,
+    DowntimeRegisterModule,
+    NotificationModule,
   ],
   controllers: [HealthController],
 })
