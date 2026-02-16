@@ -9,10 +9,14 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  BadRequestException,
   UseGuards,
   UseInterceptors,
   Request,
+  Res,
+  Header,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { CreateInvoiceUseCase } from '../application/use-cases/create-invoice.use-case';
 import { GenerateInvoiceAutoUseCase } from '../application/use-cases/generate-invoice-auto.use-case';
 import { GenerateInvoiceWeightUseCase } from '../application/use-cases/generate-invoice-weight.use-case';
@@ -26,11 +30,14 @@ import { GenerateInvoiceDto } from '../application/dto/generate-invoice.dto';
 import { GenerateInvoiceWeightDto } from '../application/dto/generate-invoice-weight.dto';
 import { GenerateInvoiceMonthDto } from '../application/dto/generate-invoice-month.dto';
 import { UpdateInvoiceDto } from '../application/dto/update-invoice.dto';
+import { BulkInvoicePdfJobDto } from '../application/dto/bulk-invoice-pdf-job.dto';
 import { InvoiceResponseDto } from '../application/dto/invoice-response.dto';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuditLogInterceptor } from '../../user/presentation/interceptors/audit-log.interceptor';
+import { InvoicePdfService } from '../application/services/invoice-pdf.service';
+import { InvoiceQueueService } from '../application/services/invoice-queue.service';
 import { Invoice } from '../domain/entities/invoice.domain.entity';
 
 @Controller('invoices')
@@ -46,42 +53,59 @@ export class InvoiceController {
     private readonly getAllInvoicesUseCase: GetAllInvoicesUseCase,
     private readonly updateInvoiceUseCase: UpdateInvoiceUseCase,
     private readonly deleteInvoiceUseCase: DeleteInvoiceUseCase,
+    private readonly invoicePdfService: InvoicePdfService,
+    private readonly invoiceQueueService: InvoiceQueueService,
   ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @RequirePermissions('INVOICE_CREATE')
   async create(@Body() createInvoiceDto: CreateInvoiceDto, @Request() req: any) {
-    const invoice = await this.createInvoiceUseCase.execute(
-      createInvoiceDto,
-      req.user?.userId,
-    );
-    return {
-      success: true,
-      data: this.toResponseDto(invoice),
-    };
+    try {
+      const invoice = await this.createInvoiceUseCase.execute(
+        createInvoiceDto,
+        req.user?.userId,
+      );
+      return {
+        success: true,
+        data: this.toResponseDto(invoice),
+      };
+    } catch (error) {
+      throw error; // Let the exception filter handle it
+    }
   }
 
   @Post('generate')
   @HttpCode(HttpStatus.CREATED)
   @RequirePermissions('INVOICE_CREATE')
   async generate(@Body() generateInvoiceDto: GenerateInvoiceDto, @Request() req: any) {
-    const result = await this.generateInvoiceAutoUseCase.execute(
-      generateInvoiceDto,
-      req.user?.userId,
-    );
-    return {
-      success: true,
-      data: {
-        generated: result.success.map(inv => this.toResponseDto(inv)),
-        failed: result.failed,
-        summary: {
-          total: result.success.length + result.failed.length,
-          success: result.success.length,
-          failed: result.failed.length,
+    try {
+      const result = await this.generateInvoiceAutoUseCase.execute(
+        generateInvoiceDto,
+        req.user?.userId,
+      );
+      
+      // Log failed invoices for debugging
+      if (result.failed.length > 0) {
+        console.error('Invoice generation failures:', JSON.stringify(result.failed, null, 2));
+      }
+      
+      return {
+        success: true,
+        data: {
+          generated: result.success.map(inv => this.toResponseDto(inv)),
+          failed: result.failed,
+          summary: {
+            total: result.success.length + result.failed.length,
+            success: result.success.length,
+            failed: result.failed.length,
+          },
         },
-      },
-    };
+      };
+    } catch (error) {
+      console.error('Error in invoice generation endpoint:', error);
+      throw error; // Let the exception filter handle it
+    }
   }
 
   @Post('generate-weight')
@@ -147,6 +171,61 @@ export class InvoiceController {
     };
   }
 
+  @Get(':id/pdf')
+  @RequirePermissions('INVOICE_VIEW')
+  @Header('Content-Type', 'application/pdf')
+  async downloadPdf(@Param('id') id: string, @Res() res: Response) {
+    try {
+      // First verify invoice exists
+      const invoice = await this.getInvoiceUseCase.execute(id);
+      const filename = `${invoice.invoiceNumber}.pdf`;
+      
+      // Generate PDF
+      const pdfBuffer = await this.invoicePdfService.generateInvoicePdf(id) as Buffer;
+      
+      if (!pdfBuffer || pdfBuffer.length === 0) {
+        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          success: false,
+          message: 'PDF generation returned empty buffer',
+        });
+      }
+      
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.send(pdfBuffer);
+    } catch (error) {
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to generate PDF',
+        error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : String(error)) : undefined,
+      });
+    }
+  }
+
+  @Get(':id/pdf/base64')
+  @RequirePermissions('INVOICE_VIEW')
+  async getPdfBase64(@Param('id') id: string) {
+    try {
+      const base64Pdf = await this.invoicePdfService.generateInvoicePdf(id, 'base64') as string;
+      const invoice = await this.getInvoiceUseCase.execute(id);
+      
+      return {
+        success: true,
+        data: {
+          invoiceId: id,
+          invoiceNumber: invoice.invoiceNumber,
+          pdfBase64: base64Pdf,
+          filename: `${invoice.invoiceNumber}.pdf`,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to generate PDF',
+      };
+    }
+  }
+
   @Get(':id')
   @RequirePermissions('INVOICE_VIEW')
   async findOne(@Param('id') id: string) {
@@ -183,6 +262,31 @@ export class InvoiceController {
     return {
       success: true,
       message: 'Invoice deleted successfully',
+    };
+  }
+
+  @Post('pdf/bulk')
+  @RequirePermissions('INVOICE_VIEW')
+  async createBulkPdfJob(@Body() body: BulkInvoicePdfJobDto) {
+    const max = parseInt(process.env.MAX_BULK_PDF || '100', 10);
+
+    if (!body.invoiceIds || body.invoiceIds.length === 0) {
+      throw new BadRequestException('invoiceIds array is required');
+    }
+
+    if (body.invoiceIds.length > max) {
+      throw new BadRequestException(`Too many invoiceIds. Max ${max} per request.`);
+    }
+
+    const { jobId } = await this.invoiceQueueService.addBulkJob(
+      body.invoiceIds,
+      body.email,
+    );
+
+    return {
+      success: true,
+      data: { jobId },
+      message: 'Processing started',
     };
   }
 

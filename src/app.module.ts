@@ -45,11 +45,13 @@ import { EmissionRegisterModule } from './modules/emission-register/emission-reg
 import { ETPRegisterModule } from './modules/etp-register/etp-register.module';
 import { DowntimeRegisterModule } from './modules/downtime-register/downtime-register.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { QueueModule } from './modules/queue/queue.module';
 import { HealthController } from './common/controllers/health.controller';
 
 @Module({
   imports: [
     ConfigModule,
+    QueueModule,
     
     // Master Database Connection - For reference/master data
     TypeOrmModule.forRootAsync({

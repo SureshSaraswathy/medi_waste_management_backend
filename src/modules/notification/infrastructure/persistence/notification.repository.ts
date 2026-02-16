@@ -26,12 +26,12 @@ export class NotificationRepository {
     limit?: number,
   ): Promise<NotificationEntity[]> {
     // Query notifications where user is a direct receiver OR has a role that receives the notification
-    // Note: This assumes a user_roles table exists. Adjust table/column names as needed.
+    // Users table has user_role_id column (not a junction table)
     const query = this.notificationRepo
       .createQueryBuilder('notification')
       .leftJoinAndSelect('notification.receivers', 'receiver')
       .where('receiver.userId = :userId', { userId })
-      .orWhere('receiver.roleId IN (SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = :userId)', { userId })
+      .orWhere('receiver.roleId IN (SELECT u.user_role_id FROM users u WHERE u.user_id = :userId AND u.user_role_id IS NOT NULL)', { userId })
       .orderBy('receiver.priority', 'DESC')
       .addOrderBy('notification.createdAt', 'DESC')
       .distinct(true);
@@ -48,7 +48,7 @@ export class NotificationRepository {
       .createQueryBuilder('notification')
       .leftJoinAndSelect('notification.receivers', 'receiver')
       .where('receiver.isRead = false')
-      .andWhere('(receiver.userId = :userId OR receiver.roleId IN (SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = :userId))', { userId })
+      .andWhere('(receiver.userId = :userId OR receiver.roleId IN (SELECT u.user_role_id FROM users u WHERE u.user_id = :userId AND u.user_role_id IS NOT NULL))', { userId })
       .orderBy('receiver.priority', 'DESC')
       .addOrderBy('notification.createdAt', 'DESC')
       .distinct(true)
@@ -61,7 +61,7 @@ export class NotificationRepository {
       .createQueryBuilder('notification')
       .leftJoin('notification.receivers', 'receiver')
       .where('receiver.isRead = false')
-      .andWhere('(receiver.userId = :userId OR receiver.roleId IN (SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = :userId))', { userId })
+      .andWhere('(receiver.userId = :userId OR receiver.roleId IN (SELECT u.user_role_id FROM users u WHERE u.user_id = :userId AND u.user_role_id IS NOT NULL))', { userId })
       .select('COUNT(DISTINCT notification.id)', 'count')
       .getRawOne();
     return parseInt(result?.count || '0', 10);
@@ -84,7 +84,7 @@ export class NotificationRepository {
         readAt: () => 'CURRENT_TIMESTAMP',
       })
       .where('isRead = false')
-      .andWhere('(userId = :userId OR roleId IN (SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = :userId))', { userId })
+      .andWhere('(userId = :userId OR roleId IN (SELECT u.user_role_id FROM users u WHERE u.user_id = :userId AND u.user_role_id IS NOT NULL))', { userId })
       .execute();
   }
 

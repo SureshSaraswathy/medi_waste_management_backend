@@ -175,4 +175,84 @@ This is an automated message. Please do not reply to this email.
       return false;
     }
   }
+
+  /**
+   * Send bulk invoice ZIP download link email
+   */
+  async sendBulkInvoiceZipEmail(params: {
+    to: string;
+    downloadUrl: string;
+    invoiceCount: number;
+    expiresAt?: string;
+  }): Promise<boolean> {
+    const { to, downloadUrl, invoiceCount, expiresAt } = params;
+
+    if (!this.emailEnabled) {
+      this.logger.warn(`Email service is disabled. Bulk invoice ZIP email not sent for ${to}.`);
+      return false;
+    }
+
+    if (!this.transporter) {
+      this.logger.error('Email transporter not initialized');
+      return false;
+    }
+
+    try {
+      const subject = `Bulk Invoice PDFs Ready (${invoiceCount} invoice${invoiceCount === 1 ? '' : 's'})`;
+
+      const expiryLine = expiresAt
+        ? `<p style="margin-top: 12px; color:#6b7280; font-size: 12px;">Link expires at: <strong>${expiresAt}</strong></p>`
+        : '';
+
+      const htmlBody = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #111827; }
+            .container { max-width: 640px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #0f172a; color: white; padding: 16px 20px; border-radius: 10px; }
+            .content { padding: 20px; background-color: #f9fafb; border-radius: 10px; margin-top: 12px; }
+            .btn { display:inline-block; background:#2563eb; color:#fff; padding: 12px 16px; border-radius: 8px; text-decoration: none; }
+            .meta { color:#6b7280; font-size: 13px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h2 style="margin:0;">Medi Waste Management</h2>
+            </div>
+            <div class="content">
+              <p>Your bulk invoice PDF ZIP is ready.</p>
+              <p class="meta">Invoices: <strong>${invoiceCount}</strong></p>
+              <p style="margin: 16px 0;">
+                <a class="btn" href="${downloadUrl}" target="_blank" rel="noopener noreferrer">Download ZIP</a>
+              </p>
+              ${expiryLine}
+              <p class="meta">If you did not request this, please ignore this email.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const textBody = `Bulk invoice PDF ZIP is ready.\nInvoices: ${invoiceCount}\nDownload: ${downloadUrl}\n${expiresAt ? `Link expires at: ${expiresAt}\n` : ''}`;
+
+      const mailOptions = {
+        from: `"${this.emailFromName}" <${this.emailFrom}>`,
+        to,
+        subject,
+        text: textBody,
+        html: htmlBody,
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Bulk invoice ZIP email sent to ${to}. MessageId: ${info.messageId}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send bulk invoice ZIP email to ${to}:`, error);
+      return false;
+    }
+  }
 }

@@ -76,10 +76,39 @@ export class GenerateInvoiceAutoUseCase {
         });
         success.push(invoice);
       } catch (error: any) {
+        // Extract error message from NestJS exceptions or regular errors
+        let errorMessage = 'Failed to generate invoice';
+        
+        // NestJS HttpException has getResponse() method
+        if (error?.getResponse) {
+          const response = error.getResponse();
+          if (typeof response === 'string') {
+            errorMessage = response;
+          } else if (response && typeof response === 'object' && 'message' in response) {
+            const msg = (response as any).message;
+            errorMessage = Array.isArray(msg) ? msg.join(', ') : msg;
+          }
+        } else if (error?.message) {
+          // Regular Error or Exception
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error?.toString) {
+          errorMessage = error.toString();
+        }
+        
+        // Remove "HCF {hcfId}: " prefix if present (already included in exception)
+        if (errorMessage.startsWith(`HCF ${hcfId}: `)) {
+          errorMessage = errorMessage.replace(`HCF ${hcfId}: `, '');
+        }
+        
+        console.error(`Failed to generate invoice for HCF ${hcfCode} (${hcfId}):`, errorMessage);
+        console.error('Full error object:', error);
+        
         failed.push({
           hcfId,
           hcfCode,
-          reason: error.message || 'Failed to generate invoice',
+          reason: errorMessage,
         });
       }
     }

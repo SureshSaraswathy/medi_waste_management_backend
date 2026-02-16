@@ -14,21 +14,29 @@ import { DeleteInvoiceUseCase } from './application/use-cases/delete-invoice.use
 import { InvoiceNumberService } from './application/services/invoice-number.service';
 import { InvoiceCalculationService } from './application/services/invoice-calculation.service';
 import { InvoiceLockService } from './application/services/invoice-lock.service';
+import { InvoicePdfService } from './application/services/invoice-pdf.service';
+import { InvoiceQueueService } from './application/services/invoice-queue.service';
+import { InvoiceBulkDownloadService } from './application/services/invoice-bulk-download.service';
 import { INVOICE_REPOSITORY_TOKEN } from './domain/interfaces/invoice.repository.interface';
 import { HcfModule } from '../hcf/hcf.module';
 import { CompanyModule } from '../company/company.module';
+import { CompanyEntity } from '../company/infrastructure/persistence/company.entity';
+import { HcfEntity } from '../hcf/infrastructure/persistence/hcf.entity';
 import { WasteTransactionModule } from '../waste-transaction/waste-transaction.module';
 import { NotificationModule } from '../notification/notification.module';
+import { InvoiceDownloadController } from './presentation/invoice-download.controller';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([InvoiceEntity], 'transaction'),
+    TypeOrmModule.forFeature([CompanyEntity], 'master'),
+    TypeOrmModule.forFeature([HcfEntity], 'master'),
     HcfModule,
     CompanyModule,
     WasteTransactionModule,
     NotificationModule,
   ],
-  controllers: [InvoiceController],
+  controllers: [InvoiceController, InvoiceDownloadController],
   providers: [
     {
       provide: INVOICE_REPOSITORY_TOKEN,
@@ -45,6 +53,9 @@ import { NotificationModule } from '../notification/notification.module';
     InvoiceNumberService,
     InvoiceCalculationService,
     InvoiceLockService,
+    InvoicePdfService,
+    InvoiceQueueService,
+    InvoiceBulkDownloadService,
   ],
   exports: [INVOICE_REPOSITORY_TOKEN],
 })
