@@ -218,4 +218,8 @@ export class UpdateHcfDto {
   @IsEnum(MasterStatus)
   @IsOptional()
   status?: MasterStatus;
+
+  @IsBoolean()
+  @IsOptional()
+  loginEnabled?: boolean;
 }

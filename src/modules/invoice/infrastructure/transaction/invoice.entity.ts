@@ -8,11 +8,12 @@ import {
 } from 'typeorm';
 
 export enum InvoiceStatus {
-  DRAFT = 'Draft',
-  GENERATED = 'Generated',
-  PARTIALLY_PAID = 'Partially Paid',
-  PAID = 'Paid',
-  CANCELLED = 'Cancelled',
+  DRAFT = 'DRAFT',
+  POSTED = 'POSTED',
+  DUE = 'DUE',
+  PARTIAL_PAID = 'PARTIAL_PAID',
+  PAID = 'PAID',
+  CANCELLED = 'CANCELLED',
 }
 
 export enum BillingType {
@@ -43,6 +44,7 @@ export enum InvoiceGenerationType {
 @Index(['status'], { where: 'is_deleted = false' })
 @Index(['invoiceDate'], { where: 'is_deleted = false' })
 @Index(['financialYear'], { where: 'is_deleted = false' })
+@Index(['batchId'], { where: 'is_deleted = false' })
 export class InvoiceEntity {
   @PrimaryColumn({ type: 'uuid', name: 'invoice_id' })
   invoiceId: string;
@@ -118,9 +120,16 @@ export class InvoiceEntity {
   @Column({ type: 'decimal', precision: 12, scale: 2, name: 'balance_amount', default: 0 })
   balanceAmount: number;
 
+  // Batch reference
+  @Column({ type: 'uuid', name: 'batch_id', nullable: true })
+  batchId: string | null;
+
   // Status and lock
   @Column({ type: 'varchar', length: 20, name: 'status', default: InvoiceStatus.DRAFT })
   status: InvoiceStatus;
+
+  @Column({ type: 'timestamp', name: 'posted_at', nullable: true })
+  postedAt: Date | null;
 
   @Column({ type: 'boolean', name: 'is_locked', default: false })
   isLocked: boolean;

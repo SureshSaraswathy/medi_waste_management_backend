@@ -232,4 +232,8 @@ export class CreateHcfDto {
   @IsBoolean()
   @IsOptional()
   autoGen?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  loginEnabled?: boolean;
 }

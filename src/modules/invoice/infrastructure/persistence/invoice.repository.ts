@@ -46,6 +46,8 @@ export class InvoiceRepository implements IInvoiceRepository {
       Number(entity.totalPaidAmount),
       Number(entity.balanceAmount),
       entity.status,
+      entity.batchId,
+      entity.postedAt ? toDate(entity.postedAt) : null,
       entity.isLocked,
       entity.lockedAfterDate ? toDate(entity.lockedAfterDate) : null,
       entity.financialYear,
@@ -87,6 +89,8 @@ export class InvoiceRepository implements IInvoiceRepository {
     entity.totalPaidAmount = domain.totalPaidAmount;
     entity.balanceAmount = domain.balanceAmount;
     entity.status = domain.status;
+    entity.batchId = domain.batchId;
+    entity.postedAt = domain.postedAt;
     entity.isLocked = domain.isLocked;
     entity.lockedAfterDate = domain.lockedAfterDate;
     entity.financialYear = domain.financialYear;
@@ -204,6 +208,16 @@ export class InvoiceRepository implements IInvoiceRepository {
     });
 
     return entity ? this.toDomain(entity) : null;
+  }
+
+  async findByBatchId(batchId: string): Promise<Invoice[]> {
+    const entities = await this.repository.find({
+      where: {
+        batchId,
+        isDeleted: false,
+      },
+    });
+    return entities.map(entity => this.toDomain(entity));
   }
 
   async delete(invoiceId: string): Promise<void> {

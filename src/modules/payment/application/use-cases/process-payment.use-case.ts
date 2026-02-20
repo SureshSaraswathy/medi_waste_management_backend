@@ -82,7 +82,7 @@ export class ProcessPaymentUseCase {
       if (invoice.isDeleted) {
         throw new BadRequestException(`Invoice ${invoice.invoiceNumber} is deleted`);
       }
-      if (invoice.status !== InvoiceStatus.GENERATED && invoice.status !== InvoiceStatus.PARTIALLY_PAID) {
+      if (invoice.status !== InvoiceStatus.DUE && invoice.status !== InvoiceStatus.PARTIAL_PAID) {
         throw new InvalidInvoiceStatusException(invoice.invoiceNumber, invoice.status);
       }
       if (invoice.companyId !== createPaymentDto.companyId) {
@@ -150,9 +150,10 @@ export class ProcessPaymentUseCase {
       // Update invoice status
       if (newBalance <= 0.01) {
         (invoice as any).status = InvoiceStatus.PAID;
-      } else {
-        (invoice as any).status = InvoiceStatus.PARTIALLY_PAID;
+      } else if (invoice.status === InvoiceStatus.DUE) {
+        (invoice as any).status = InvoiceStatus.PARTIAL_PAID;
       }
+      // If already PARTIAL_PAID, keep it as PARTIAL_PAID
 
       (invoice as any).modifiedBy = createdBy;
       (invoice as any).modifiedOn = new Date();

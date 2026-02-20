@@ -9,6 +9,8 @@ export interface JwtPayload {
   userRoleId: string | null;
   email?: string;
   permissions?: string[];
+  userType?: 'USER' | 'HCF'; // NEW: Distinguish user type
+  hcfId?: string; // NEW: If HCF user
 }
 
 @Injectable()

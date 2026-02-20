@@ -152,6 +152,7 @@ export class HcfController {
       isGovt: hcf.isGovt || undefined,
       isGSTExempt: hcf.isGSTExempt || undefined,
       autoGen: hcf.autoGen || undefined,
+      loginEnabled: hcf.loginEnabled || undefined,
       status: hcf.status,
       createdBy: hcf.createdBy,
       createdOn: hcf.createdOn.toISOString(),

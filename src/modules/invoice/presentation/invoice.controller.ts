@@ -25,6 +25,7 @@ import { GetInvoiceUseCase } from '../application/use-cases/get-invoice.use-case
 import { GetAllInvoicesUseCase } from '../application/use-cases/get-all-invoices.use-case';
 import { UpdateInvoiceUseCase } from '../application/use-cases/update-invoice.use-case';
 import { DeleteInvoiceUseCase } from '../application/use-cases/delete-invoice.use-case';
+import { PostInvoiceUseCase } from '../application/use-cases/post-invoice.use-case';
 import { CreateInvoiceDto } from '../application/dto/create-invoice.dto';
 import { GenerateInvoiceDto } from '../application/dto/generate-invoice.dto';
 import { GenerateInvoiceWeightDto } from '../application/dto/generate-invoice-weight.dto';
@@ -53,6 +54,7 @@ export class InvoiceController {
     private readonly getAllInvoicesUseCase: GetAllInvoicesUseCase,
     private readonly updateInvoiceUseCase: UpdateInvoiceUseCase,
     private readonly deleteInvoiceUseCase: DeleteInvoiceUseCase,
+    private readonly postInvoiceUseCase: PostInvoiceUseCase,
     private readonly invoicePdfService: InvoicePdfService,
     private readonly invoiceQueueService: InvoiceQueueService,
   ) {}
@@ -251,6 +253,27 @@ export class InvoiceController {
     return {
       success: true,
       data: this.toResponseDto(invoice),
+    };
+  }
+
+  @Post(':id/post')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('INVOICE_CREATE')
+  async postInvoice(
+    @Param('id') id: string,
+    @Body() body: { invoiceDate?: string },
+    @Request() req: any,
+  ) {
+    const invoiceDate = body.invoiceDate ? new Date(body.invoiceDate) : new Date();
+    if (isNaN(invoiceDate.getTime())) {
+      throw new BadRequestException('Invalid invoiceDate format');
+    }
+
+    const invoice = await this.postInvoiceUseCase.execute(id, invoiceDate, req.user?.userId);
+    return {
+      success: true,
+      data: this.toResponseDto(invoice),
+      message: 'Invoice posted successfully',
     };
   }
 

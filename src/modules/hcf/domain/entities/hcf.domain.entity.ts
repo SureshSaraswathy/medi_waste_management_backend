@@ -6,6 +6,17 @@ export class Hcf extends BaseMasterEntity {
     public readonly hcfCode: string,
     public readonly companyId: string,
     public password: string | null,
+    // Authentication fields
+    public loginEnabled: boolean,
+    public passwordHash: string | null,
+    public forcePasswordChange: boolean,
+    public temporaryPassword: string | null,
+    public temporaryPasswordExpiry: Date | null,
+    public passwordChangedAt: Date | null,
+    public passwordExpiresAt: Date | null,
+    public lastLogin: Date | null,
+    public resetToken: string | null,
+    public resetTokenExpiry: Date | null,
     public hcfTypeCode: string | null,
     public hcfName: string,
     public hcfShortName: string | null,
@@ -66,6 +77,16 @@ export class Hcf extends BaseMasterEntity {
     hcfCode: string;
     companyId: string;
     password?: string | null;
+    loginEnabled?: boolean;
+    passwordHash?: string | null;
+    forcePasswordChange?: boolean;
+    temporaryPassword?: string | null;
+    temporaryPasswordExpiry?: Date | null;
+    passwordChangedAt?: Date | null;
+    passwordExpiresAt?: Date | null;
+    lastLogin?: Date | null;
+    resetToken?: string | null;
+    resetTokenExpiry?: Date | null;
     hcfTypeCode?: string | null;
     hcfName: string;
     hcfShortName?: string | null;
@@ -119,6 +140,16 @@ export class Hcf extends BaseMasterEntity {
       params.hcfCode,
       params.companyId,
       params.password || null,
+      params.loginEnabled ?? false,
+      params.passwordHash || null,
+      params.forcePasswordChange ?? false,
+      params.temporaryPassword || null,
+      params.temporaryPasswordExpiry || null,
+      params.passwordChangedAt || null,
+      params.passwordExpiresAt || null,
+      params.lastLogin || null,
+      params.resetToken || null,
+      params.resetTokenExpiry || null,
       params.hcfTypeCode || null,
       params.hcfName,
       params.hcfShortName || null,
@@ -178,6 +209,16 @@ export class Hcf extends BaseMasterEntity {
     hcfCode: string;
     companyId: string;
     password: string | null;
+    loginEnabled?: boolean;
+    passwordHash?: string | null;
+    forcePasswordChange?: boolean;
+    temporaryPassword?: string | null;
+    temporaryPasswordExpiry?: Date | null;
+    passwordChangedAt?: Date | null;
+    passwordExpiresAt?: Date | null;
+    lastLogin?: Date | null;
+    resetToken?: string | null;
+    resetTokenExpiry?: Date | null;
     hcfTypeCode: string | null;
     hcfName: string;
     hcfShortName: string | null;
@@ -235,6 +276,16 @@ export class Hcf extends BaseMasterEntity {
       data.hcfCode,
       data.companyId,
       data.password,
+      data.loginEnabled ?? false,
+      data.passwordHash || null,
+      data.forcePasswordChange ?? false,
+      data.temporaryPassword || null,
+      data.temporaryPasswordExpiry || null,
+      data.passwordChangedAt || null,
+      data.passwordExpiresAt || null,
+      data.lastLogin || null,
+      data.resetToken || null,
+      data.resetTokenExpiry || null,
       data.hcfTypeCode,
       data.hcfName,
       data.hcfShortName,
@@ -388,5 +439,56 @@ export class Hcf extends BaseMasterEntity {
 
   get hcfId(): string {
     return this.id;
+  }
+
+  // Authentication helper methods
+  enableLogin(): void {
+    this.loginEnabled = true;
+    this.modifiedOn = new Date();
+  }
+
+  disableLogin(): void {
+    this.loginEnabled = false;
+    this.passwordHash = null;
+    this.forcePasswordChange = false;
+    this.temporaryPassword = null;
+    this.temporaryPasswordExpiry = null;
+    this.resetToken = null;
+    this.resetTokenExpiry = null;
+    this.modifiedOn = new Date();
+  }
+
+  setPassword(passwordHash: string): void {
+    this.passwordHash = passwordHash;
+    this.forcePasswordChange = false;
+    this.temporaryPassword = null;
+    this.temporaryPasswordExpiry = null;
+    this.passwordChangedAt = new Date();
+    this.modifiedOn = new Date();
+    // Set password expiry to 90 days from now
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() + 90);
+    this.passwordExpiresAt = expiry;
+  }
+
+  isPasswordExpired(): boolean {
+    if (!this.passwordExpiresAt) {
+      return false; // No expiry set
+    }
+    return new Date() > this.passwordExpiresAt;
+  }
+
+  isTemporaryPasswordExpired(): boolean {
+    if (!this.temporaryPasswordExpiry) {
+      return true; // No expiry means expired
+    }
+    return new Date() > this.temporaryPasswordExpiry;
+  }
+
+  isResetTokenExpired(): boolean {
+    if (!this.resetTokenExpiry) {
+      return true; // No expiry means expired
+    }
+    return new Date() > this.resetTokenExpiry;
   }
 }

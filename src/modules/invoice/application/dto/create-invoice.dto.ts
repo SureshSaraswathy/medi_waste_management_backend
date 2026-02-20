@@ -1,6 +1,6 @@
 import { IsString, IsUUID, IsDateString, IsEnum, IsNumber, IsOptional, IsInt, Min, ValidateIf, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
-import { BillingType, BillingOption, InvoiceGenerationType } from '../../infrastructure/transaction/invoice.entity';
+import { BillingType, BillingOption, InvoiceGenerationType, InvoiceStatus } from '../../infrastructure/transaction/invoice.entity';
 
 export class CreateInvoiceDto {
   @IsUUID()
@@ -105,4 +105,8 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsDateString()
   billingPeriodEnd?: string;
+
+  @IsOptional()
+  @IsEnum(InvoiceStatus)
+  status?: InvoiceStatus;
 }

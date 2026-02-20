@@ -1,0 +1,9 @@
+{
+  "token": "b65ff92d-47d2-4f48-b3ad-ae488a448f8b",
+  "jobId": "5",
+  "email": "superadmin@medi-waste.io",
+  "fileName": "invoices-5.zip",
+  "filePath": "D:\\NodeJSProject\\medi_waste_management_backend\\storage\\bulk-invoice-zips\\job-5-invoices-5.zip",
+  "createdAt": "2026-02-16T10:10:49.050Z",
+  "expiresAt": "2026-02-17T10:10:49.050Z"
+}

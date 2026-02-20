@@ -4,7 +4,7 @@ import { Logger } from '@nestjs/common';
 import { InvoicePdfService } from '../services/invoice-pdf.service';
 import { InvoiceBulkDownloadService } from '../services/invoice-bulk-download.service';
 import { EmailService } from '../../../auth/services/email.service';
-import { ZipGenerator, ZipFileEntry } from '../../../../common/utils/zip-generator.util';
+import { ZipGenerator, ZipFileEntry, ZipManifestEntry } from '../../../../common/utils/zip-generator.util';
 import { IInvoiceRepository, INVOICE_REPOSITORY_TOKEN } from '../../domain/interfaces/invoice.repository.interface';
 import { Inject } from '@nestjs/common';
 
@@ -40,6 +40,7 @@ export class InvoiceProcessor extends WorkerHost {
     await job.updateProgress(1);
 
     const zipFiles: ZipFileEntry[] = [];
+    const manifestData: ZipManifestEntry[] = [];
 
     for (let i = 0; i < invoiceIds.length; i++) {
       const invoiceId = invoiceIds[i];
@@ -55,6 +56,14 @@ export class InvoiceProcessor extends WorkerHost {
 
       zipFiles.push({ name: fileName, buffer: pdfBuffer });
 
+      // Build manifest entry for this invoice
+      manifestData.push({
+        fileName,
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        generatedAt: new Date().toISOString(),
+      });
+
       const progress = 5 + Math.round(((i + 1) / total) * 80);
       await job.updateProgress(progress);
     }
@@ -63,6 +72,7 @@ export class InvoiceProcessor extends WorkerHost {
 
     const zipBuffer = await ZipGenerator.generateZipFromBuffers(zipFiles, {
       includeManifest: true,
+      manifestData,
       compressionLevel: 6,
     });
 

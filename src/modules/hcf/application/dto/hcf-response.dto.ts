@@ -190,4 +190,8 @@ export class HcfResponseDto extends BaseMasterResponseDto {
   @IsBoolean()
   @IsOptional()
   autoGen?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  loginEnabled?: boolean;
 }

@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from '../user/user.module';
+import { HcfModule } from '../hcf/hcf.module';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionService } from './services/permission.service';
@@ -40,6 +41,7 @@ import { UserEntity } from '../user/infrastructure/persistence/user.entity';
       },
     }),
     forwardRef(() => UserModule), // Use forwardRef to avoid circular dependency
+    forwardRef(() => HcfModule), // Use forwardRef to avoid circular dependency
   ],
   controllers: [AuthController],
   providers: [

@@ -24,6 +24,37 @@ export class HcfEntity {
   @Column({ type: 'varchar', length: 255, name: 'password', nullable: true })
   password: string | null;
 
+  // Authentication fields
+  @Column({ type: 'boolean', name: 'login_enabled', default: false })
+  loginEnabled: boolean;
+
+  @Column({ type: 'varchar', length: 255, name: 'password_hash', nullable: true })
+  passwordHash: string | null;
+
+  @Column({ type: 'boolean', name: 'force_password_change', default: false })
+  forcePasswordChange: boolean;
+
+  @Column({ type: 'varchar', length: 255, name: 'temporary_password', nullable: true })
+  temporaryPassword: string | null;
+
+  @Column({ type: 'timestamp', name: 'temporary_password_expiry', nullable: true })
+  temporaryPasswordExpiry: Date | null;
+
+  @Column({ type: 'timestamp', name: 'password_changed_at', nullable: true })
+  passwordChangedAt: Date | null;
+
+  @Column({ type: 'timestamp', name: 'password_expires_at', nullable: true })
+  passwordExpiresAt: Date | null;
+
+  @Column({ type: 'timestamp', name: 'last_login', nullable: true })
+  lastLogin: Date | null;
+
+  @Column({ type: 'varchar', length: 255, name: 'reset_token', nullable: true })
+  resetToken: string | null;
+
+  @Column({ type: 'timestamp', name: 'reset_token_expiry', nullable: true })
+  resetTokenExpiry: Date | null;
+
   @Column({ type: 'varchar', length: 50, name: 'hcf_type_code', nullable: true })
   hcfTypeCode: string | null;
 

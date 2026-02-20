@@ -3,6 +3,8 @@ import { Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IUserRepository } from '../../../user/domain/interfaces/user.repository.interface';
 import { USER_REPOSITORY_TOKEN } from '../../../user/domain/interfaces/user.repository.interface';
+import { HCF_REPOSITORY_TOKEN } from '../../../hcf/domain/interfaces/hcf.repository.interface';
+import { IHcfRepository } from '../../../hcf/domain/interfaces/hcf.repository.interface';
 import { PasswordService } from '../../../user/application/services/password.service';
 import { AuthJwtService } from '../../services/jwt.service';
 import { PermissionService } from '../../services/permission.service';
@@ -17,9 +19,13 @@ export interface LoginResponse {
   email?: string;
   companyId: string;
   userRoleId: string | null;
+  userType?: 'USER' | 'HCF'; // NEW: Distinguish user type
+  hcfId?: string; // NEW: If HCF user
   status: string;
   requiresOTP: boolean;
-  forcePasswordChange: boolean;
+  forcePasswordChange?: boolean;
+  requiresPasswordChange?: boolean; // NEW: For HCF users
+  passwordExpired?: boolean; // NEW: For HCF users
   token?: string; // JWT token
 }
 
@@ -36,6 +42,8 @@ export class LoginUseCase {
   constructor(
     @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
+    @Inject(HCF_REPOSITORY_TOKEN)
+    private readonly hcfRepository: IHcfRepository,
     private readonly passwordService: PasswordService,
     private readonly jwtService: AuthJwtService,
     private readonly permissionService: PermissionService,
@@ -101,6 +109,7 @@ export class LoginUseCase {
         email: this.superAdminConfig.email,
         companyId: '00000000-0000-0000-0000-000000000000', // System company ID
         userRoleId: null,
+        userType: 'USER',
         status: 'Active',
         requiresOTP: otpGloballyEnabled, // Super admin uses global setting
         forcePasswordChange: false,
@@ -145,8 +154,9 @@ export class LoginUseCase {
       }
     }
 
+    // If user not found, try HCF login
     if (!user) {
-      throw new UnauthorizedException('Invalid username or password');
+      return this.tryHCFLogin(usernameOrEmail, password);
     }
 
     // Check if password is enabled
@@ -237,6 +247,124 @@ export class LoginUseCase {
       requiresOTP,
       forcePasswordChange: user.forcePasswordChange || false,
       token, // JWT token or undefined if OTP required
+      userType: 'USER', // Mark as regular user
     };
+  }
+
+  /**
+   * Try HCF login if user login fails
+   */
+  private async tryHCFLogin(usernameOrEmail: string, password: string): Promise<LoginResponse> {
+    try {
+      // Try to find HCF by code or email (case-insensitive)
+      const hcf = await this.hcfRepository.findByCodeOrEmail(usernameOrEmail);
+
+      if (!hcf) {
+        console.log(`[HCF Login] HCF not found for identifier: ${usernameOrEmail}`);
+        throw new UnauthorizedException('Invalid username or password');
+      }
+
+      if (!hcf.loginEnabled) {
+        console.log(`[HCF Login] Login not enabled for HCF: ${hcf.hcfCode}`);
+        throw new UnauthorizedException('Invalid username or password');
+      }
+
+      // Check if HCF is active
+      if (hcf.status !== 'Active' || hcf.isDeleted) {
+        console.log(`[HCF Login] HCF not active or deleted: ${hcf.hcfCode}, status: ${hcf.status}, isDeleted: ${hcf.isDeleted}`);
+        throw new UnauthorizedException('Invalid username or password');
+      }
+
+      // Check if password hash exists
+      if (!hcf.passwordHash) {
+        console.error(`[HCF Login] Password hash is missing for HCF: ${hcf.hcfCode}. Login enabled but no password set.`);
+        throw new UnauthorizedException('Password not configured. Please contact administrator.');
+      }
+
+      // Verify password
+      const isPasswordValid = await this.passwordService.comparePassword(
+        password,
+        hcf.passwordHash,
+      );
+
+      // Check temporary password
+      let isTemporaryPassword = false;
+      if (hcf.temporaryPassword) {
+        isTemporaryPassword = password === hcf.temporaryPassword;
+        if (isTemporaryPassword && hcf.isTemporaryPasswordExpired()) {
+          throw new UnauthorizedException('Temporary password has expired. Please request a new password reset.');
+        }
+      }
+
+      if (!isPasswordValid && !isTemporaryPassword) {
+        console.log(`[HCF Login] Password validation failed for HCF: ${hcf.hcfCode}`);
+        throw new UnauthorizedException('Invalid username or password');
+      }
+
+      console.log(`[HCF Login] Successful login for HCF: ${hcf.hcfCode}`);
+
+      // Check password expiration
+      const isPasswordExpired = hcf.isPasswordExpired();
+      const requiresPasswordChange = hcf.forcePasswordChange || isPasswordExpired;
+
+      if (isPasswordExpired && !isTemporaryPassword) {
+        throw new UnauthorizedException('Password has expired. Please reset your password.');
+      }
+
+      // Update last login
+      hcf.lastLogin = new Date();
+      await this.hcfRepository.update(hcf.hcfId, hcf);
+
+      // Load HCF permissions
+      const permissions = this.getHCFPermissions();
+
+      // Generate JWT token
+      const token = await this.jwtService.generateToken({
+        userId: hcf.hcfId,
+        userName: hcf.hcfCode,
+        email: hcf.contactEmail || undefined,
+        companyId: hcf.companyId,
+        userRoleId: null,
+        permissions,
+      });
+
+      return {
+        userId: hcf.hcfId,
+        userName: hcf.hcfCode,
+        email: hcf.contactEmail || undefined,
+        companyId: hcf.companyId,
+        userRoleId: null,
+        userType: 'HCF',
+        hcfId: hcf.hcfId,
+        status: hcf.status,
+        requiresOTP: false, // HCF users don't use OTP
+        forcePasswordChange: false,
+        requiresPasswordChange,
+        passwordExpired: isPasswordExpired,
+        token,
+      };
+    } catch (error) {
+      // If HCF login fails, log the error and throw
+      if (error instanceof UnauthorizedException) {
+        // Re-throw the original error (it already has the correct message)
+        throw error;
+      }
+      console.error(`[HCF Login] Unexpected error during HCF login:`, error);
+      throw new UnauthorizedException('Invalid username or password');
+    }
+  }
+
+  /**
+   * Get fixed permissions for HCF users
+   */
+  private getHCFPermissions(): string[] {
+    return [
+      'HCF_PROFILE_VIEW',
+      'HCF_PROFILE_EDIT',
+      'HCF_INVOICE_VIEW',
+      'HCF_PAYMENT_VIEW',
+      'HCF_WASTE_ENTRY_CREATE',
+      'HCF_WASTE_ENTRY_VIEW',
+    ];
   }
 }

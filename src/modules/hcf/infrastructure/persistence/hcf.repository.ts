@@ -74,12 +74,54 @@ export class HcfRepository implements IHcfRepository {
     return entities.map((e) => this.toDomain(e));
   }
 
+  async findByCode(hcfCode: string): Promise<Hcf | null> {
+    // Case-insensitive search for HCF code
+    const normalizedCode = hcfCode.trim().toUpperCase();
+    const entity = await this.hcfRepo
+      .createQueryBuilder('hcf')
+      .where('UPPER(hcf.hcf_code) = :code', { code: normalizedCode })
+      .andWhere('hcf.is_deleted = false')
+      .andWhere('hcf.login_enabled = true')
+      .getOne();
+    return entity ? this.toDomain(entity) : null;
+  }
+
+  async findByCodeOrEmail(identifier: string): Promise<Hcf | null> {
+    const normalizedIdentifier = identifier.trim().toLowerCase();
+    const entity = await this.hcfRepo
+      .createQueryBuilder('hcf')
+      .where('LOWER(hcf.hcf_code) = :identifier', { identifier: normalizedIdentifier })
+      .orWhere('LOWER(hcf.contact_email) = :identifier', { identifier: normalizedIdentifier })
+      .orWhere('LOWER(hcf.accounts_email) = :identifier', { identifier: normalizedIdentifier })
+      .andWhere('hcf.is_deleted = false')
+      .andWhere('hcf.login_enabled = true')
+      .getOne();
+    return entity ? this.toDomain(entity) : null;
+  }
+
+  async findByResetToken(token: string): Promise<Hcf | null> {
+    const entity = await this.hcfRepo.findOne({
+      where: { resetToken: token, isDeleted: false, loginEnabled: true },
+    });
+    return entity ? this.toDomain(entity) : null;
+  }
+
   private toEntity(hcf: Hcf): HcfEntity {
     const entity = new HcfEntity();
     entity.hcfId = hcf.hcfId;
     entity.hcfCode = hcf.hcfCode;
     entity.companyId = hcf.companyId;
     entity.password = hcf.password;
+    entity.loginEnabled = hcf.loginEnabled;
+    entity.passwordHash = hcf.passwordHash;
+    entity.forcePasswordChange = hcf.forcePasswordChange;
+    entity.temporaryPassword = hcf.temporaryPassword;
+    entity.temporaryPasswordExpiry = hcf.temporaryPasswordExpiry;
+    entity.passwordChangedAt = hcf.passwordChangedAt;
+    entity.passwordExpiresAt = hcf.passwordExpiresAt;
+    entity.lastLogin = hcf.lastLogin;
+    entity.resetToken = hcf.resetToken;
+    entity.resetTokenExpiry = hcf.resetTokenExpiry;
     entity.hcfTypeCode = hcf.hcfTypeCode;
     entity.hcfName = hcf.hcfName;
     entity.hcfShortName = hcf.hcfShortName;
@@ -140,6 +182,16 @@ export class HcfRepository implements IHcfRepository {
       hcfCode: entity.hcfCode,
       companyId: entity.companyId,
       password: entity.password,
+      loginEnabled: entity.loginEnabled,
+      passwordHash: entity.passwordHash,
+      forcePasswordChange: entity.forcePasswordChange,
+      temporaryPassword: entity.temporaryPassword,
+      temporaryPasswordExpiry: entity.temporaryPasswordExpiry,
+      passwordChangedAt: entity.passwordChangedAt,
+      passwordExpiresAt: entity.passwordExpiresAt,
+      lastLogin: entity.lastLogin,
+      resetToken: entity.resetToken,
+      resetTokenExpiry: entity.resetTokenExpiry,
       hcfTypeCode: entity.hcfTypeCode,
       hcfName: entity.hcfName,
       hcfShortName: entity.hcfShortName,

@@ -19,6 +19,7 @@ import { FleetModule } from './modules/fleet/fleet.module';
 import { RouteHcfModule } from './modules/route-hcf/route-hcf.module';
 import { HcfAmendmentModule } from './modules/hcf-amendment/hcf-amendment.module';
 import { HcfModule } from './modules/hcf/hcf.module';
+import { HCFAuthModule } from './modules/hcf-auth/hcf-auth.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ExportModule } from './modules/export/export.module';
 import { TrainingCertificateModule } from './modules/training-certificate/training-certificate.module';
@@ -110,6 +111,7 @@ import { HealthController } from './common/controllers/health.controller';
     RouteHcfModule,
     HcfAmendmentModule,
     HcfModule,
+    HCFAuthModule,
     ExportModule,
     TrainingCertificateModule,
     ContractModule,

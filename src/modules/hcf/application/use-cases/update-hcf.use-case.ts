@@ -3,18 +3,41 @@ import { IHcfRepository, HCF_REPOSITORY_TOKEN } from '../../domain/interfaces/hc
 import { Hcf } from '../../domain/entities/hcf.domain.entity';
 import { UpdateHcfDto } from '../dto/update-hcf.dto';
 import { HcfNotFoundException } from '../../domain/exceptions/hcf.exceptions';
+import { PasswordService } from '../../../user/application/services/password.service';
 
 @Injectable()
 export class UpdateHcfUseCase {
   constructor(
     @Inject(HCF_REPOSITORY_TOKEN)
     private readonly hcfRepository: IHcfRepository,
+    private readonly passwordService: PasswordService,
   ) {}
 
   async execute(hcfId: string, updateHcfDto: UpdateHcfDto, modifiedBy?: string): Promise<Hcf> {
     const hcf = await this.hcfRepository.findById(hcfId);
     if (!hcf) {
       throw new HcfNotFoundException(hcfId);
+    }
+
+    // Handle loginEnabled toggle
+    if (updateHcfDto.loginEnabled !== undefined) {
+      if (updateHcfDto.loginEnabled && !hcf.loginEnabled) {
+        // Enabling login - if no password hash exists, generate temporary password
+        if (!hcf.passwordHash) {
+          const temporaryPassword = this.passwordService.generateTemporaryPassword();
+          const passwordHash = await this.passwordService.hashPassword(temporaryPassword);
+          const temporaryPasswordExpiry = this.passwordService.getTemporaryPasswordExpiry();
+          
+          (hcf as any).passwordHash = passwordHash;
+          (hcf as any).temporaryPassword = temporaryPassword;
+          (hcf as any).temporaryPasswordExpiry = temporaryPasswordExpiry;
+          (hcf as any).forcePasswordChange = true;
+        }
+        hcf.enableLogin();
+      } else if (!updateHcfDto.loginEnabled && hcf.loginEnabled) {
+        // Disabling login
+        hcf.disableLogin();
+      }
     }
 
     hcf.update({

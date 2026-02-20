@@ -47,7 +47,7 @@ export class DashboardKpiService {
     const count = await this.invoiceRepository.count({
       where: {
         isDeleted: false,
-        status: InvoiceStatus.GENERATED,
+        status: InvoiceStatus.DUE,
       },
     });
 

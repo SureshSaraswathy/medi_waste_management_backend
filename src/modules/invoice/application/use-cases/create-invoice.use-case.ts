@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { IInvoiceRepository, INVOICE_REPOSITORY_TOKEN } from '../../domain/interfaces/invoice.repository.interface';
 import { IHcfRepository, HCF_REPOSITORY_TOKEN } from '../../../hcf/domain/interfaces/hcf.repository.interface';
 import { ICompanyRepository, COMPANY_REPOSITORY_TOKEN } from '../../../company/domain/interfaces/company.repository.interface';
+import { IBatchRepository, BATCH_REPOSITORY_TOKEN } from '../../domain/interfaces/batch.repository.interface';
 import { Invoice } from '../../domain/entities/invoice.domain.entity';
 import { CreateInvoiceDto } from '../dto/create-invoice.dto';
 import { InvoiceNumberService } from '../services/invoice-number.service';
@@ -14,7 +15,8 @@ import { NotificationPriority } from '../../../notification/infrastructure/persi
 import { DuplicateInvoiceException, InvalidInvoiceDataException } from '../../domain/exceptions/invoice.exceptions';
 import { HcfNotFoundException } from '../../../hcf/domain/exceptions/hcf.exceptions';
 import { CompanyNotFoundException } from '../../../company/domain/exceptions/company.exceptions';
-import { BillingOption, InvoiceGenerationType } from '../../infrastructure/transaction/invoice.entity';
+import { BillingOption, InvoiceGenerationType, InvoiceStatus } from '../../infrastructure/transaction/invoice.entity';
+import { InvoiceBatchEntity, BatchType, BatchStatus } from '../../infrastructure/transaction/invoice-batch.entity';
 
 @Injectable()
 export class CreateInvoiceUseCase {
@@ -25,6 +27,8 @@ export class CreateInvoiceUseCase {
     private readonly hcfRepository: IHcfRepository,
     @Inject(COMPANY_REPOSITORY_TOKEN)
     private readonly companyRepository: ICompanyRepository,
+    @Inject(BATCH_REPOSITORY_TOKEN)
+    private readonly batchRepository: IBatchRepository,
     private readonly invoiceNumberService: InvoiceNumberService,
     private readonly invoiceCalculationService: InvoiceCalculationService,
     private readonly invoiceLockService: InvoiceLockService,
@@ -68,8 +72,48 @@ export class CreateInvoiceUseCase {
       }
     }
 
-    // Generate invoice number
-    const { invoiceNumber, financialYear, sequenceNumber } = await this.invoiceNumberService.generateInvoiceNumber(invoiceDate);
+    // Handle batch creation for manual DRAFT invoices
+    let batchId: string | null = null;
+    let invoiceNumber = '';
+    let financialYear = '';
+    let sequenceNumber = 0;
+    const invoiceStatus = createInvoiceDto.status ?? InvoiceStatus.DRAFT;
+
+    if (createInvoiceDto.generationType === InvoiceGenerationType.MANUAL && invoiceStatus === InvoiceStatus.DRAFT) {
+      // Create or find batch for manual invoices (one batch per day per company)
+      const today = new Date().toISOString().split('T')[0];
+      const existingBatches = await this.batchRepository.findAll(
+        createInvoiceDto.companyId,
+        BatchStatus.STAGED,
+      );
+
+      // Find batch created today with type MANUAL
+      let batch = existingBatches.find(b => {
+        const batchDate = new Date(b.createdAt).toISOString().split('T')[0];
+        return batchDate === today && b.type === BatchType.MANUAL;
+      });
+
+      if (!batch) {
+        // Create new batch for today
+        const newBatch = new InvoiceBatchEntity();
+        newBatch.id = randomUUID();
+        newBatch.type = BatchType.MANUAL;
+        newBatch.companyId = createInvoiceDto.companyId;
+        newBatch.status = BatchStatus.STAGED;
+        newBatch.totalRecords = 0;
+        newBatch.createdBy = createdBy || null;
+        batch = await this.batchRepository.create(newBatch);
+      }
+
+      batchId = batch.id;
+      // Don't generate invoice number for DRAFT invoices - will be generated on post
+    } else {
+      // Generate invoice number for non-DRAFT invoices
+      const numberResult = await this.invoiceNumberService.generateInvoiceNumber(invoiceDate);
+      invoiceNumber = numberResult.invoiceNumber;
+      financialYear = numberResult.financialYear;
+      sequenceNumber = numberResult.sequenceNumber;
+    }
 
     // Calculate invoice amounts
     const calculationResult = this.invoiceCalculationService.calculateInvoiceAmounts({
@@ -112,16 +156,32 @@ export class CreateInvoiceUseCase {
       billingPeriodEnd: createInvoiceDto.billingPeriodEnd ? new Date(createInvoiceDto.billingPeriodEnd) : null,
       notes: createInvoiceDto.notes,
       createdBy: createdBy || null,
+      status: invoiceStatus,
+      batchId: batchId,
+      postedAt: null,
     });
 
-    // Check and lock if needed
-    this.invoiceLockService.checkAndLockInvoice(invoice);
+    // Check and lock if needed (only for non-DRAFT invoices)
+    if (invoiceStatus !== InvoiceStatus.DRAFT) {
+      this.invoiceLockService.checkAndLockInvoice(invoice);
+    }
 
     // Save invoice
     const savedInvoice = await this.invoiceRepository.create(invoice);
 
-    // Trigger notifications
-    await this.triggerInvoiceNotifications(savedInvoice, createdBy);
+    // Update batch total records if batch exists
+    if (batchId) {
+      const batch = await this.batchRepository.findById(batchId);
+      if (batch) {
+        batch.totalRecords += 1;
+        await this.batchRepository.update(batch);
+      }
+    }
+
+    // Trigger notifications (only for non-DRAFT invoices)
+    if (invoiceStatus !== InvoiceStatus.DRAFT) {
+      await this.triggerInvoiceNotifications(savedInvoice, createdBy);
+    }
 
     return savedInvoice;
   }

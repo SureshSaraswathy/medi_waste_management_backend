@@ -70,12 +70,12 @@ export class RecordPaymentUseCase {
       throw new BadRequestException(`Invoice ${invoice.invoiceNumber} is deleted`);
     }
 
-    // Validation: Only Generated or Partially Paid invoices can receive payments
-    if (invoice.status !== InvoiceStatus.GENERATED && invoice.status !== InvoiceStatus.PARTIALLY_PAID) {
+    // Validation: Only DUE or Partially Paid invoices can receive payments
+    if (invoice.status !== InvoiceStatus.DUE && invoice.status !== InvoiceStatus.PARTIAL_PAID) {
       throw new InvalidInvoiceStatusException(
         invoice.invoiceNumber,
         invoice.status,
-        'Only Generated or Partially Paid invoices can receive payments'
+        'Only DUE or Partially Paid invoices can receive payments'
       );
     }
 
@@ -126,11 +126,11 @@ export class RecordPaymentUseCase {
     (invoice as any).balanceAmount = newBalance;
 
     // Update invoice status based on balance
-    // Generated → Partial → Paid
+    // DUE → Partial → Paid
     if (newBalance <= 0.01) {
       (invoice as any).status = InvoiceStatus.PAID;
     } else {
-      (invoice as any).status = InvoiceStatus.PARTIALLY_PAID;
+      (invoice as any).status = InvoiceStatus.PARTIAL_PAID;
     }
 
     (invoice as any).modifiedBy = createdBy;

@@ -4,7 +4,7 @@ import { Invoice } from '../../domain/entities/invoice.domain.entity';
 import { UpdateInvoiceDto } from '../dto/update-invoice.dto';
 import { InvoiceCalculationService } from '../services/invoice-calculation.service';
 import { InvoiceNotFoundException, InvoiceLockedException, InvalidInvoiceDataException } from '../../domain/exceptions/invoice.exceptions';
-import { BillingOption } from '../../infrastructure/transaction/invoice.entity';
+import { BillingOption, InvoiceStatus } from '../../infrastructure/transaction/invoice.entity';
 
 @Injectable()
 export class UpdateInvoiceUseCase {
@@ -22,6 +22,11 @@ export class UpdateInvoiceUseCase {
 
     if (invoice.isLocked) {
       throw new InvoiceLockedException('Invoice is locked and cannot be modified');
+    }
+
+    // Edit protection: Only DRAFT invoices can be edited
+    if (invoice.status !== InvoiceStatus.DRAFT) {
+      throw new InvoiceLockedException('Posted invoices cannot be edited');
     }
 
     // Validate billing data if billing option is being updated

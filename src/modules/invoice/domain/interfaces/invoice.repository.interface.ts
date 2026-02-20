@@ -23,5 +23,6 @@ export interface IInvoiceRepository {
     billingPeriodEnd: Date;
     billingType: string;
   }): Promise<Invoice | null>;
+  findByBatchId(batchId: string): Promise<Invoice[]>;
   delete(invoiceId: string): Promise<void>;
 }

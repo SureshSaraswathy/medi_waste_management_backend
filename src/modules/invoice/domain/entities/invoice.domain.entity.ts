@@ -26,6 +26,8 @@ export class Invoice {
     public totalPaidAmount: number,
     public balanceAmount: number,
     public status: InvoiceStatus,
+    public batchId: string | null,
+    public postedAt: Date | null,
     public isLocked: boolean,
     public lockedAfterDate: Date | null,
     public financialYear: string,
@@ -68,6 +70,9 @@ export class Invoice {
     billingPeriodEnd?: Date | null;
     notes?: string | null;
     createdBy?: string | null;
+    batchId?: string | null;
+    status?: InvoiceStatus;
+    postedAt?: Date | null;
   }): Invoice {
     const now = new Date();
     const taxableValue = params.taxableValue ?? 0;
@@ -101,7 +106,9 @@ export class Invoice {
       invoiceValue,
       0, // totalPaidAmount
       invoiceValue, // balanceAmount
-      InvoiceStatus.DRAFT,
+      params.status ?? InvoiceStatus.DRAFT,
+      params.batchId ?? null,
+      params.postedAt ?? null,
       false, // isLocked
       null, // lockedAfterDate
       params.financialYear,
@@ -187,8 +194,8 @@ export class Invoice {
     // Update status based on payment
     if (this.balanceAmount <= 0) {
       this.status = InvoiceStatus.PAID;
-    } else if (this.totalPaidAmount > 0) {
-      this.status = InvoiceStatus.PARTIALLY_PAID;
+    } else if (this.totalPaidAmount > 0 && this.status === InvoiceStatus.DUE) {
+      this.status = InvoiceStatus.PARTIAL_PAID;
     }
     
     this.modifiedOn = new Date();
@@ -196,7 +203,16 @@ export class Invoice {
 
   generate(): void {
     if (this.status === InvoiceStatus.DRAFT) {
-      this.status = InvoiceStatus.GENERATED;
+      this.status = InvoiceStatus.POSTED;
+      this.postedAt = new Date();
+      this.modifiedOn = new Date();
+    }
+  }
+
+  post(): void {
+    if (this.status === InvoiceStatus.DRAFT) {
+      this.status = InvoiceStatus.DUE;
+      this.postedAt = new Date();
       this.modifiedOn = new Date();
     }
   }

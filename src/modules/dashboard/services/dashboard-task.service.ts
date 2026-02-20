@@ -50,7 +50,7 @@ export class DashboardTaskService {
     const invoices = await this.invoiceRepository.find({
       where: {
         isDeleted: false,
-        status: InvoiceStatus.GENERATED,
+        status: InvoiceStatus.DUE,
       },
       order: { createdOn: 'DESC' },
       take: 20,
@@ -89,7 +89,7 @@ export class DashboardTaskService {
     const overdueInvoices = await this.invoiceRepository.find({
       where: {
         isDeleted: false,
-        status: InvoiceStatus.GENERATED,
+        status: InvoiceStatus.DUE,
       },
     });
 
