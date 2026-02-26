@@ -25,7 +25,21 @@ export class UpdateCompanyUseCase {
       modifiedBy: modifiedBy || null,
     });
 
+    // Extract additional fields that don't belong to domain entity
+    const additionalFields = {
+      contactNum: updateCompanyDto.contactNum !== undefined ? updateCompanyDto.contactNum : undefined,
+      webAddress: updateCompanyDto.webAddress !== undefined ? updateCompanyDto.webAddress : undefined,
+      companyEmail: updateCompanyDto.companyEmail !== undefined ? updateCompanyDto.companyEmail : undefined,
+      bankAccountName: updateCompanyDto.bankAccountName !== undefined ? updateCompanyDto.bankAccountName : undefined,
+      bankName: updateCompanyDto.bankName !== undefined ? updateCompanyDto.bankName : undefined,
+      bankAccountNum: updateCompanyDto.bankAccountNum !== undefined ? updateCompanyDto.bankAccountNum : undefined,
+      bankIFSCode: updateCompanyDto.bankIFSCode !== undefined ? updateCompanyDto.bankIFSCode : undefined,
+      bankBranch: updateCompanyDto.bankBranch !== undefined ? updateCompanyDto.bankBranch : undefined,
+      upiId: updateCompanyDto.upiId !== undefined ? updateCompanyDto.upiId : undefined,
+      qrCode: updateCompanyDto.qrCode !== undefined ? updateCompanyDto.qrCode : undefined,
+    };
+
     // Persist through repository
-    return this.companyRepository.update(companyId, company);
+    return this.companyRepository.update(companyId, company, additionalFields);
   }
 }

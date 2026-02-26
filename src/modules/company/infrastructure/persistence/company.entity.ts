@@ -45,4 +45,36 @@ export class CompanyEntity {
 
   @Column({ type: 'boolean', default: false, name: 'is_deleted' })
   isDeleted: boolean;
+
+  // Contact Information
+  @Column({ type: 'varchar', length: 15, name: 'contact_num', nullable: true })
+  contactNum?: string | null;
+
+  @Column({ type: 'varchar', length: 500, name: 'web_address', nullable: true })
+  webAddress?: string | null;
+
+  @Column({ type: 'varchar', length: 255, name: 'company_email', nullable: true })
+  companyEmail?: string | null;
+
+  // Bank & Payment Information
+  @Column({ type: 'varchar', length: 200, name: 'bank_account_name', nullable: true })
+  bankAccountName?: string | null;
+
+  @Column({ type: 'varchar', length: 200, name: 'bank_name', nullable: true })
+  bankName?: string | null;
+
+  @Column({ type: 'varchar', length: 50, name: 'bank_account_num', nullable: true })
+  bankAccountNum?: string | null;
+
+  @Column({ type: 'varchar', length: 11, name: 'bank_ifsc_code', nullable: true })
+  bankIFSCode?: string | null;
+
+  @Column({ type: 'varchar', length: 200, name: 'bank_branch', nullable: true })
+  bankBranch?: string | null;
+
+  @Column({ type: 'varchar', length: 100, name: 'upi_id', nullable: true })
+  upiId?: string | null;
+
+  @Column({ type: 'text', name: 'qr_code', nullable: true })
+  qrCode?: string | null;
 }

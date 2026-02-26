@@ -27,7 +27,21 @@ export class CreateCompanyUseCase {
       createdBy: createdBy || null,
     });
 
+    // Extract additional fields that don't belong to domain entity
+    const additionalFields = {
+      contactNum: createCompanyDto.contactNum || null,
+      webAddress: createCompanyDto.webAddress || null,
+      companyEmail: createCompanyDto.companyEmail || null,
+      bankAccountName: createCompanyDto.bankAccountName || null,
+      bankName: createCompanyDto.bankName || null,
+      bankAccountNum: createCompanyDto.bankAccountNum || null,
+      bankIFSCode: createCompanyDto.bankIFSCode || null,
+      bankBranch: createCompanyDto.bankBranch || null,
+      upiId: createCompanyDto.upiId || null,
+      qrCode: createCompanyDto.qrCode || null,
+    };
+
     // Persist through repository
-    return this.companyRepository.create(company);
+    return this.companyRepository.create(company, additionalFields);
   }
 }

@@ -25,6 +25,8 @@ import { RequirePermissions } from '../../auth/decorators/require-permissions.de
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuditLogInterceptor } from '../../user/presentation/interceptors/audit-log.interceptor';
+import { Inject } from '@nestjs/common';
+import { COMPANY_REPOSITORY_TOKEN, ICompanyRepository } from '../domain/interfaces/company.repository.interface';
 
 @Controller('companies')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -36,6 +38,8 @@ export class CompanyController {
     private readonly getAllCompaniesUseCase: GetAllCompaniesUseCase,
     private readonly updateCompanyUseCase: UpdateCompanyUseCase,
     private readonly deleteCompanyUseCase: DeleteCompanyUseCase,
+    @Inject(COMPANY_REPOSITORY_TOKEN)
+    private readonly companyRepository: ICompanyRepository,
   ) {}
 
   @Post()
@@ -46,9 +50,13 @@ export class CompanyController {
       createCompanyDto,
       req.user?.userId,
     );
+    const entity = await this.companyRepository.getEntityById(company.companyId);
+    if (!entity) {
+      throw new Error('Company not found after creation');
+    }
     return {
       success: true,
-      data: this.toResponseDto(company),
+      data: this.entityToResponseDto(entity),
       message: 'Company created successfully',
     };
   }
@@ -56,10 +64,10 @@ export class CompanyController {
   @Get()
   @RequirePermissions('COMPANY_VIEW')
   async findAll(@Query('activeOnly') activeOnly?: string) {
-    const companies = await this.getAllCompaniesUseCase.execute(activeOnly === 'true');
+    const entities = await this.companyRepository.getAllEntities(activeOnly === 'true');
     return {
       success: true,
-      data: companies.map((c) => this.toResponseDto(c)),
+      data: entities.map((e) => this.entityToResponseDto(e)),
       message: 'Companies retrieved successfully',
     };
   }
@@ -67,10 +75,13 @@ export class CompanyController {
   @Get(':id')
   @RequirePermissions('COMPANY_VIEW')
   async findOne(@Param('id') id: string) {
-    const company = await this.getCompanyUseCase.execute(id);
+    const entity = await this.companyRepository.getEntityById(id);
+    if (!entity) {
+      throw new Error('Company not found');
+    }
     return {
       success: true,
-      data: this.toResponseDto(company),
+      data: this.entityToResponseDto(entity),
       message: 'Company retrieved successfully',
     };
   }
@@ -82,14 +93,18 @@ export class CompanyController {
     @Body() updateCompanyDto: UpdateCompanyDto,
     @Request() req: any,
   ) {
-    const company = await this.updateCompanyUseCase.execute(
+    await this.updateCompanyUseCase.execute(
       id,
       updateCompanyDto,
       req.user?.userId,
     );
+    const entity = await this.companyRepository.getEntityById(id);
+    if (!entity) {
+      throw new Error('Company not found');
+    }
     return {
       success: true,
-      data: this.toResponseDto(company),
+      data: this.entityToResponseDto(entity),
       message: 'Company updated successfully',
     };
   }
@@ -111,6 +126,29 @@ export class CompanyController {
       createdOn: company.createdOn.toISOString(),
       modifiedBy: company.modifiedBy,
       modifiedOn: company.modifiedOn.toISOString(),
+    };
+  }
+
+  private entityToResponseDto(entity: any): CompanyResponseDto {
+    return {
+      id: entity.companyId,
+      companyCode: entity.companyCode,
+      companyName: entity.companyName,
+      status: entity.status,
+      createdBy: entity.createdBy,
+      createdOn: entity.createdOn.toISOString(),
+      modifiedBy: entity.modifiedBy,
+      modifiedOn: entity.modifiedOn.toISOString(),
+      contactNum: entity.contactNum,
+      webAddress: entity.webAddress,
+      companyEmail: entity.companyEmail,
+      bankAccountName: entity.bankAccountName,
+      bankName: entity.bankName,
+      bankAccountNum: entity.bankAccountNum,
+      bankIFSCode: entity.bankIFSCode,
+      bankBranch: entity.bankBranch,
+      upiId: entity.upiId,
+      qrCode: entity.qrCode,
     };
   }
 }

@@ -45,6 +45,7 @@ import { DisposalRegisterModule } from './modules/disposal-register/disposal-reg
 import { EmissionRegisterModule } from './modules/emission-register/emission-register.module';
 import { ETPRegisterModule } from './modules/etp-register/etp-register.module';
 import { DowntimeRegisterModule } from './modules/downtime-register/downtime-register.module';
+import { ComplianceRegisterModule } from './modules/compliance-register/compliance-register.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { HealthController } from './common/controllers/health.controller';
@@ -136,6 +137,7 @@ import { HealthController } from './common/controllers/health.controller';
     EmissionRegisterModule,
     ETPRegisterModule,
     DowntimeRegisterModule,
+    ComplianceRegisterModule,
     NotificationModule,
   ],
   controllers: [HealthController],
