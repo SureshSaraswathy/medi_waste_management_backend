@@ -28,26 +28,36 @@ export class DashboardTableService {
    * READ-ONLY query - does not modify business logic
    */
   async getRecentInvoices(limit: number = 10): Promise<DashboardTableResponseDto> {
-    const invoices = await this.invoiceRepository.find({
-      where: { isDeleted: false },
-      order: { createdOn: 'DESC' },
-      take: limit,
-    });
+    try {
+      const invoices = await this.invoiceRepository.find({
+        where: { isDeleted: false },
+        order: { createdOn: 'DESC' },
+        take: limit,
+      });
 
-    const columns = ['Invoice Number', 'Date', 'HCF', 'Amount', 'Status'];
-    const rows = invoices.map((invoice) => ({
-      'Invoice Number': invoice.invoiceNumber,
-      'Date': invoice.invoiceDate.toISOString().split('T')[0],
-      'HCF': invoice.hcfId, // TODO: Join with HCF table to get name
-      'Amount': invoice.invoiceValue,
-      'Status': invoice.status,
-    }));
+      const columns = ['Invoice Number', 'Date', 'HCF', 'Amount', 'Status'];
+      const rows = invoices.map((invoice) => ({
+        'Invoice Number': invoice.invoiceNumber || '-',
+        'Date': invoice.invoiceDate ? invoice.invoiceDate.toISOString().split('T')[0] : '-',
+        'HCF': invoice.hcfId || '-', // TODO: Join with HCF table to get name
+        'Amount': invoice.invoiceValue || 0,
+        'Status': invoice.status || '-',
+      }));
 
-    return {
-      columns,
-      rows,
-      total: invoices.length,
-    };
+      return {
+        columns,
+        rows,
+        total: invoices.length,
+      };
+    } catch (error) {
+      console.error('[DashboardTableService] Error fetching recent invoices:', error);
+      // Return empty result instead of throwing to prevent 500 errors
+      return {
+        columns: ['Invoice Number', 'Date', 'HCF', 'Amount', 'Status'],
+        rows: [],
+        total: 0,
+      };
+    }
   }
 
   /**
@@ -55,26 +65,36 @@ export class DashboardTableService {
    * READ-ONLY query - does not modify business logic
    */
   async getRecentPayments(limit: number = 10): Promise<DashboardTableResponseDto> {
-    const payments = await this.paymentRepository.find({
-      where: { isDeleted: false },
-      order: { createdOn: 'DESC' },
-      take: limit,
-    });
+    try {
+      const payments = await this.paymentRepository.find({
+        where: { isDeleted: false },
+        order: { createdOn: 'DESC' },
+        take: limit,
+      });
 
-    const columns = ['Payment Date', 'Amount', 'Mode', 'Reference', 'Status'];
-    const rows = payments.map((payment) => ({
-      'Payment Date': payment.paymentDate.toISOString().split('T')[0],
-      'Amount': payment.paymentAmount,
-      'Mode': payment.paymentMode,
-      'Reference': payment.referenceNumber || '-',
-      'Status': payment.status,
-    }));
+      const columns = ['Payment Date', 'Amount', 'Mode', 'Reference', 'Status'];
+      const rows = payments.map((payment) => ({
+        'Payment Date': payment.paymentDate ? payment.paymentDate.toISOString().split('T')[0] : '-',
+        'Amount': payment.paymentAmount || 0,
+        'Mode': payment.paymentMode || '-',
+        'Reference': payment.referenceNumber || '-',
+        'Status': payment.status || '-',
+      }));
 
-    return {
-      columns,
-      rows,
-      total: payments.length,
-    };
+      return {
+        columns,
+        rows,
+        total: payments.length,
+      };
+    } catch (error) {
+      console.error('[DashboardTableService] Error fetching recent payments:', error);
+      // Return empty result instead of throwing to prevent 500 errors
+      return {
+        columns: ['Payment Date', 'Amount', 'Mode', 'Reference', 'Status'],
+        rows: [],
+        total: 0,
+      };
+    }
   }
 
   /**
@@ -82,28 +102,38 @@ export class DashboardTableService {
    * READ-ONLY query - does not modify business logic
    */
   async getPendingReceipts(limit: number = 10): Promise<DashboardTableResponseDto> {
-    const payments = await this.paymentRepository.find({
-      where: {
-        isDeleted: false,
-        receiptId: IsNull(), // Payments without receipts
-      },
-      order: { paymentDate: 'DESC' },
-      take: limit,
-    });
+    try {
+      const payments = await this.paymentRepository.find({
+        where: {
+          isDeleted: false,
+          receiptId: IsNull(), // Payments without receipts
+        },
+        order: { paymentDate: 'DESC' },
+        take: limit,
+      });
 
-    const columns = ['Payment Date', 'Amount', 'Mode', 'Company'];
-    const rows = payments.map((payment) => ({
-      'Payment Date': payment.paymentDate.toISOString().split('T')[0],
-      'Amount': payment.paymentAmount,
-      'Mode': payment.paymentMode,
-      'Company': payment.companyId, // TODO: Join with company table to get name
-    }));
+      const columns = ['Payment Date', 'Amount', 'Mode', 'Company'];
+      const rows = payments.map((payment) => ({
+        'Payment Date': payment.paymentDate ? payment.paymentDate.toISOString().split('T')[0] : '-',
+        'Amount': payment.paymentAmount || 0,
+        'Mode': payment.paymentMode || '-',
+        'Company': payment.companyId || '-', // TODO: Join with company table to get name
+      }));
 
-    return {
-      columns,
-      rows,
-      total: payments.length,
-    };
+      return {
+        columns,
+        rows,
+        total: payments.length,
+      };
+    } catch (error) {
+      console.error('[DashboardTableService] Error fetching pending receipts:', error);
+      // Return empty result instead of throwing to prevent 500 errors
+      return {
+        columns: ['Payment Date', 'Amount', 'Mode', 'Company'],
+        rows: [],
+        total: 0,
+      };
+    }
   }
 
   /**
