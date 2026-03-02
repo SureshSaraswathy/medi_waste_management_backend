@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MaxLength, MinLength, Matches, IsOptional, IsEmail, IsUrl, ValidateIf } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength, MinLength, Matches, IsOptional, IsEmail, IsUrl, ValidateIf, IsDateString } from 'class-validator';
 
 export class CreateCompanyDto {
   @IsString()
@@ -13,6 +13,136 @@ export class CreateCompanyDto {
   @MinLength(2)
   @MaxLength(200)
   companyName: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(15)
+  gstin?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(10)
+  pincode?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(10)
+  state?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(20)
+  prefix?: string;
+
+  // Address Information
+  @IsString()
+  @IsOptional()
+  regdOfficeAddress?: string;
+
+  @IsString()
+  @IsOptional()
+  adminOfficeAddress?: string;
+
+  @IsString()
+  @IsOptional()
+  factoryAddress?: string;
+
+  // Authorized Person Information
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  authPersonName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  authPersonDesignation?: string;
+
+  @IsOptional()
+  @IsDateString()
+  authPersonDOB?: string;
+
+  // PCB & Compliance
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  pcbauthNum?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  hazardousWasteNum?: string;
+
+  // CTO (Consent To Operate) - Water
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  ctoWaterNum?: string;
+
+  @IsOptional()
+  @IsDateString()
+  ctoWaterDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  ctoWaterValidUpto?: string;
+
+  // CTO (Consent To Operate) - Air
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  ctoAirNum?: string;
+
+  @IsOptional()
+  @IsDateString()
+  ctoAirDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  ctoAirValidUpto?: string;
+
+  // CTE (Consent To Establish) - Water
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  cteWaterNum?: string;
+
+  @IsOptional()
+  @IsDateString()
+  cteWaterDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  cteWaterValidUpto?: string;
+
+  // CTE (Consent To Establish) - Air
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  cteAirNum?: string;
+
+  @IsOptional()
+  @IsDateString()
+  cteAirDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  cteAirValidUpto?: string;
+
+  // GST Details
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  pcbZoneID?: string;
+
+  @IsOptional()
+  @IsDateString()
+  gstValidFrom?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(20)
+  gstRate?: string;
 
   // Contact Information
   @IsString()
@@ -66,7 +196,7 @@ export class CreateCompanyDto {
   @IsOptional()
   @ValidateIf((o) => o.bankIFSCode && o.bankIFSCode.trim().length > 0)
   @MaxLength(11)
-  @Matches(/^[A-Z]{4}0[A-Z0-9]{6}$/, { message: 'IFSC code must be in format: HDFC0001234' })
+  @Matches(/^[A-Z]{4}0[A-Z0-9]{5,6}$/, { message: 'IFSC code must be in format: HDFC0001234 or ICIC000024 (4 letters + 0 + 5-6 alphanumeric)' })
   bankIFSCode?: string;
 
   @IsString()
@@ -78,7 +208,7 @@ export class CreateCompanyDto {
   @IsOptional()
   @ValidateIf((o) => o.upiId && o.upiId.trim().length > 0)
   @MaxLength(100)
-  @Matches(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, { message: 'UPI ID must be in format: name@bank' })
+  @Matches(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/, { message: 'UPI ID must be in format: name@bank (e.g., john@paytm, 9876543210@ybl)' })
   upiId?: string;
 
   @IsString()

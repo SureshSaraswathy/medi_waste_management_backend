@@ -130,25 +130,78 @@ export class CompanyController {
   }
 
   private entityToResponseDto(entity: any): CompanyResponseDto {
+    // Helper function to safely convert date to ISO string
+    const safeDateToString = (date: any): string | null => {
+      if (!date) return null;
+      try {
+        if (date instanceof Date) {
+          return date.toISOString().split('T')[0];
+        }
+        if (typeof date === 'string') {
+          return date;
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    };
+
     return {
       id: entity.companyId,
       companyCode: entity.companyCode,
       companyName: entity.companyName,
+      gstin: entity?.gstin ?? null,
+      pincode: entity?.pincode ?? null,
+      state: entity?.state ?? null,
+      prefix: entity?.prefix ?? null,
+      // Address Information - safely access properties that might not exist in DB yet
+      regdOfficeAddress: entity?.regdOfficeAddress ?? null,
+      adminOfficeAddress: entity?.adminOfficeAddress ?? null,
+      factoryAddress: entity?.factoryAddress ?? null,
+      // Authorized Person Information
+      authPersonName: entity?.authPersonName ?? null,
+      authPersonDesignation: entity?.authPersonDesignation ?? null,
+      authPersonDOB: safeDateToString(entity?.authPersonDOB),
+      // PCB & Compliance
+      pcbauthNum: entity?.pcbauthNum ?? null,
+      hazardousWasteNum: entity?.hazardousWasteNum ?? null,
+      // CTO (Consent To Operate) - Water
+      ctoWaterNum: entity?.ctoWaterNum ?? null,
+      ctoWaterDate: safeDateToString(entity?.ctoWaterDate),
+      ctoWaterValidUpto: safeDateToString(entity?.ctoWaterValidUpto),
+      // CTO (Consent To Operate) - Air
+      ctoAirNum: entity?.ctoAirNum ?? null,
+      ctoAirDate: safeDateToString(entity?.ctoAirDate),
+      ctoAirValidUpto: safeDateToString(entity?.ctoAirValidUpto),
+      // CTE (Consent To Establish) - Water
+      cteWaterNum: entity?.cteWaterNum ?? null,
+      cteWaterDate: safeDateToString(entity?.cteWaterDate),
+      cteWaterValidUpto: safeDateToString(entity?.cteWaterValidUpto),
+      // CTE (Consent To Establish) - Air
+      cteAirNum: entity?.cteAirNum ?? null,
+      cteAirDate: safeDateToString(entity?.cteAirDate),
+      cteAirValidUpto: safeDateToString(entity?.cteAirValidUpto),
+      // GST Details
+      pcbZoneID: entity?.pcbZoneID ?? null,
+      gstValidFrom: safeDateToString(entity?.gstValidFrom),
+      gstRate: entity?.gstRate ?? null,
       status: entity.status,
       createdBy: entity.createdBy,
-      createdOn: entity.createdOn.toISOString(),
+      createdOn: entity.createdOn?.toISOString() ?? new Date().toISOString(),
       modifiedBy: entity.modifiedBy,
-      modifiedOn: entity.modifiedOn.toISOString(),
-      contactNum: entity.contactNum,
-      webAddress: entity.webAddress,
-      companyEmail: entity.companyEmail,
-      bankAccountName: entity.bankAccountName,
-      bankName: entity.bankName,
-      bankAccountNum: entity.bankAccountNum,
-      bankIFSCode: entity.bankIFSCode,
-      bankBranch: entity.bankBranch,
-      upiId: entity.upiId,
-      qrCode: entity.qrCode,
+      modifiedOn: entity.modifiedOn?.toISOString() ?? new Date().toISOString(),
+      // Contact Information
+      contactNum: entity?.contactNum ?? null,
+      webAddress: entity?.webAddress ?? null,
+      companyEmail: entity?.companyEmail ?? null,
+      // Bank & Payment Information
+      bankAccountName: entity?.bankAccountName ?? null,
+      bankName: entity?.bankName ?? null,
+      bankAccountNum: entity?.bankAccountNum ?? null,
+      bankIFSCode: entity?.bankIFSCode ?? null,
+      bankBranch: entity?.bankBranch ?? null,
+      upiId: entity?.upiId ?? null,
+      qrCode: entity?.qrCode ?? null,
     };
   }
 }

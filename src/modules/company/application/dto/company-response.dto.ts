@@ -11,6 +11,122 @@ export class CompanyResponseDto {
   @IsString()
   companyName: string;
 
+  @IsString()
+  @IsOptional()
+  gstin?: string | null;
+
+  @IsString()
+  @IsOptional()
+  pincode?: string | null;
+
+  @IsString()
+  @IsOptional()
+  state?: string | null;
+
+  @IsString()
+  @IsOptional()
+  prefix?: string | null;
+
+  // Address Information
+  @IsString()
+  @IsOptional()
+  regdOfficeAddress?: string | null;
+
+  @IsString()
+  @IsOptional()
+  adminOfficeAddress?: string | null;
+
+  @IsString()
+  @IsOptional()
+  factoryAddress?: string | null;
+
+  // Authorized Person Information
+  @IsString()
+  @IsOptional()
+  authPersonName?: string | null;
+
+  @IsString()
+  @IsOptional()
+  authPersonDesignation?: string | null;
+
+  @IsString()
+  @IsOptional()
+  authPersonDOB?: string | null;
+
+  // PCB & Compliance
+  @IsString()
+  @IsOptional()
+  pcbauthNum?: string | null;
+
+  @IsString()
+  @IsOptional()
+  hazardousWasteNum?: string | null;
+
+  // CTO (Consent To Operate) - Water
+  @IsString()
+  @IsOptional()
+  ctoWaterNum?: string | null;
+
+  @IsString()
+  @IsOptional()
+  ctoWaterDate?: string | null;
+
+  @IsString()
+  @IsOptional()
+  ctoWaterValidUpto?: string | null;
+
+  // CTO (Consent To Operate) - Air
+  @IsString()
+  @IsOptional()
+  ctoAirNum?: string | null;
+
+  @IsString()
+  @IsOptional()
+  ctoAirDate?: string | null;
+
+  @IsString()
+  @IsOptional()
+  ctoAirValidUpto?: string | null;
+
+  // CTE (Consent To Establish) - Water
+  @IsString()
+  @IsOptional()
+  cteWaterNum?: string | null;
+
+  @IsString()
+  @IsOptional()
+  cteWaterDate?: string | null;
+
+  @IsString()
+  @IsOptional()
+  cteWaterValidUpto?: string | null;
+
+  // CTE (Consent To Establish) - Air
+  @IsString()
+  @IsOptional()
+  cteAirNum?: string | null;
+
+  @IsString()
+  @IsOptional()
+  cteAirDate?: string | null;
+
+  @IsString()
+  @IsOptional()
+  cteAirValidUpto?: string | null;
+
+  // GST Details
+  @IsString()
+  @IsOptional()
+  pcbZoneID?: string | null;
+
+  @IsString()
+  @IsOptional()
+  gstValidFrom?: string | null;
+
+  @IsString()
+  @IsOptional()
+  gstRate?: string | null;
+
   @IsEnum(CompanyStatus)
   status: CompanyStatus;
 
