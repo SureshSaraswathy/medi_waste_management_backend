@@ -8,6 +8,7 @@ import { CompanyModule } from './modules/company/company.module';
 import { RoleModule } from './modules/role/role.module';
 import { PermissionModule } from './modules/permission/permission.module';
 import { StateModule } from './modules/state/state.module';
+import { DistrictModule } from './modules/district/district.module';
 import { AreaModule } from './modules/area/area.module';
 import { ColorModule } from './modules/color/color.module';
 import { PcbZoneModule } from './modules/pcb-zone/pcb-zone.module';
@@ -101,6 +102,7 @@ import { HealthController } from './common/controllers/health.controller';
     RoleModule,
     PermissionModule,
     StateModule,
+    DistrictModule,
     AreaModule,
     ColorModule,
     PcbZoneModule,

@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { EmissionRegisterService } from '../emission-register.service';
 import { CreateEmissionRegisterDto } from '../application/dto/create-emission-register.dto';
@@ -23,30 +24,72 @@ export class EmissionRegisterController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createDto: CreateEmissionRegisterDto) {
-    // TODO: Extract userId from JWT token
-    return this.emissionRegisterService.create(createDto);
+  async create(@Body() createDto: CreateEmissionRegisterDto, @Request() req: any) {
+    const userId = req.user?.userId;
+    const emission = await this.emissionRegisterService.create(createDto, userId);
+    return {
+      success: true,
+      data: this.toResponseDto(emission),
+      message: 'Emission register created successfully',
+    };
   }
 
   @Get()
-  findAll(@Query('companyId') companyId?: string, @Query('status') status?: string) {
-    return this.emissionRegisterService.findAll(companyId, status);
+  async findAll(@Query('companyId') companyId?: string, @Query('status') status?: string) {
+    const emissions = await this.emissionRegisterService.findAll(companyId, status);
+    return {
+      success: true,
+      data: emissions.map((e) => this.toResponseDto(e)),
+      message: 'Emission registers retrieved successfully',
+    };
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.emissionRegisterService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    const emission = await this.emissionRegisterService.findOne(id);
+    return {
+      success: true,
+      data: this.toResponseDto(emission),
+      message: 'Emission register retrieved successfully',
+    };
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDto: UpdateEmissionRegisterDto) {
-    // TODO: Extract userId from JWT token
-    return this.emissionRegisterService.update(id, updateDto);
+  async update(@Param('id') id: string, @Body() updateDto: UpdateEmissionRegisterDto, @Request() req: any) {
+    const userId = req.user?.userId;
+    const emission = await this.emissionRegisterService.update(id, updateDto, userId);
+    return {
+      success: true,
+      data: this.toResponseDto(emission),
+      message: 'Emission register updated successfully',
+    };
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    return this.emissionRegisterService.remove(id);
+  async remove(@Param('id') id: string) {
+    await this.emissionRegisterService.remove(id);
+  }
+
+  private toResponseDto(emission: any) {
+    return {
+      id: emission.emissionId,
+      emisRegNum: emission.emisRegNum,
+      companyId: emission.companyId,
+      emissionDate: emission.emissionDate instanceof Date ? emission.emissionDate.toISOString() : emission.emissionDate,
+      equipmentId: emission.equipmentId,
+      stackId: emission.stackId,
+      pm: emission.pm,
+      co: emission.co,
+      hci: emission.hci,
+      temp: emission.temp,
+      oxygen: emission.oxygen,
+      complianceStatus: emission.complianceStatus,
+      status: emission.status,
+      createdBy: emission.createdBy,
+      createdOn: emission.createdOn instanceof Date ? emission.createdOn.toISOString() : emission.createdOn,
+      modifiedBy: emission.modifiedBy,
+      modifiedOn: emission.modifiedOn instanceof Date ? emission.modifiedOn.toISOString() : emission.modifiedOn,
+    };
   }
 }
