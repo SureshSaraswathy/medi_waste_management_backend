@@ -48,6 +48,12 @@ export class ShredderRegisterService {
       indicatorResult: createDto.indicatorResult,
       complianceStatus: createDto.complianceStatus || 'Compliant',
       status: createDto.status || 'Active',
+      inputSourceType: createDto.inputSourceType,
+      inputSourceRef: createDto.inputSourceRef,
+      inputQtyKg: createDto.inputQtyKg,
+      outputQtyKg: createDto.outputQtyKg,
+      bladeCondition: createDto.bladeCondition,
+      outputDispatchedTo: createDto.outputDispatchedTo,
       createdBy: userId || null,
       modifiedBy: userId || null,
     };
@@ -100,6 +106,24 @@ export class ShredderRegisterService {
     }
     if (updateDto.status !== undefined) {
       updateData.status = updateDto.status;
+    }
+    if (updateDto.inputSourceType !== undefined) {
+      updateData.inputSourceType = updateDto.inputSourceType;
+    }
+    if (updateDto.inputSourceRef !== undefined) {
+      updateData.inputSourceRef = updateDto.inputSourceRef;
+    }
+    if (updateDto.inputQtyKg !== undefined) {
+      updateData.inputQtyKg = updateDto.inputQtyKg;
+    }
+    if (updateDto.outputQtyKg !== undefined) {
+      updateData.outputQtyKg = updateDto.outputQtyKg;
+    }
+    if (updateDto.bladeCondition !== undefined) {
+      updateData.bladeCondition = updateDto.bladeCondition;
+    }
+    if (updateDto.outputDispatchedTo !== undefined) {
+      updateData.outputDispatchedTo = updateDto.outputDispatchedTo;
     }
 
     return this.repository.update(shredderId, updateData);

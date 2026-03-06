@@ -16,10 +16,17 @@ export enum ColorBlock {
   YELLOW = 'Yellow',
   RED = 'Red',
   WHITE = 'White',
+  BLUE = 'Blue',
+}
+
+export enum BarcodeStatus {
+  ACTIVE = 'Active',
+  INACTIVE = 'Inactive',
+  DELETED = 'Deleted',
 }
 
 @Entity('barcode_labels')
-@Index(['hcfCode', 'barcodeType', 'sequenceNumber'], { unique: true, where: 'is_deleted = false' })
+@Index(['sequenceNumber'], { where: 'is_deleted = false' })
 @Index(['companyId', 'hcfId'], { where: 'is_deleted = false' })
 @Index(['barcodeValue'], { unique: true, where: 'is_deleted = false' })
 export class BarcodeLabelEntity {
@@ -46,6 +53,9 @@ export class BarcodeLabelEntity {
 
   @Column({ type: 'varchar', length: 20, name: 'color_block' })
   colorBlock: ColorBlock;
+
+  @Column({ type: 'varchar', length: 20, name: 'status', default: 'Active' })
+  status: BarcodeStatus;
 
   @Column({ type: 'uuid', name: 'created_by', nullable: true })
   createdBy: string | null;

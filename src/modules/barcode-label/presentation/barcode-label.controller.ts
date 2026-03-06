@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -17,13 +18,17 @@ import { GetBarcodeLabelUseCase } from '../application/use-cases/get-barcode-lab
 import { GetAllBarcodeLabelsUseCase } from '../application/use-cases/get-all-barcode-labels.use-case';
 import { GetLastSequenceUseCase } from '../application/use-cases/get-last-sequence.use-case';
 import { DeleteBarcodeLabelUseCase } from '../application/use-cases/delete-barcode-label.use-case';
+import { UpdateBarcodeLabelUseCase } from '../application/use-cases/update-barcode-label.use-case';
 import { CreateBarcodeLabelDto } from '../application/dto/create-barcode-label.dto';
+import { UpdateBarcodeLabelDto } from '../application/dto/update-barcode-label.dto';
 import { BarcodeLabelResponseDto } from '../application/dto/barcode-label-response.dto';
 import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuditLogInterceptor } from '../../user/presentation/interceptors/audit-log.interceptor';
 import { BarcodeType } from '../infrastructure/transaction/barcode-label.entity';
+import { IBarcodeLabelRepository, BARCODE_LABEL_REPOSITORY_TOKEN } from '../domain/interfaces/barcode-label.repository.interface';
+import { Inject } from '@nestjs/common';
 
 @Controller('barcode-labels')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -35,6 +40,9 @@ export class BarcodeLabelController {
     private readonly getAllBarcodeLabelsUseCase: GetAllBarcodeLabelsUseCase,
     private readonly getLastSequenceUseCase: GetLastSequenceUseCase,
     private readonly deleteBarcodeLabelUseCase: DeleteBarcodeLabelUseCase,
+    private readonly updateBarcodeLabelUseCase: UpdateBarcodeLabelUseCase,
+    @Inject(BARCODE_LABEL_REPOSITORY_TOKEN)
+    private readonly barcodeLabelRepository: IBarcodeLabelRepository,
   ) {}
 
   @Post()
@@ -54,18 +62,60 @@ export class BarcodeLabelController {
 
   @Get('last-sequence')
   @RequirePermissions('BARCODE_LABEL_VIEW')
-  async getLastSequence(
-    @Query('hcfCode') hcfCode: string,
-    @Query('barcodeType') barcodeType: string,
-  ) {
-    const lastSequence = await this.getLastSequenceUseCase.execute(
-      hcfCode,
-      barcodeType as BarcodeType,
-    );
+  async getLastSequence() {
+    const lastSequence = await this.getLastSequenceUseCase.execute();
     return {
       success: true,
       data: { lastSequence },
       message: 'Last sequence number retrieved successfully',
+    };
+  }
+
+  @Get('list')
+  @RequirePermissions('BARCODE_LABEL_VIEW')
+  async getList(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '50',
+    @Query('search') search?: string,
+    @Query('colorBlock') colorBlock?: string,
+    @Query('barcodeType') barcodeType?: string,
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('includeDeleted') includeDeleted?: string,
+  ) {
+    const result = await this.barcodeLabelRepository.findWithPagination({
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      search,
+      colorBlock,
+      barcodeType: barcodeType as BarcodeType,
+      status,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      includeDeleted: includeDeleted === 'true',
+    });
+    return {
+      success: true,
+      data: result.data.map(label => this.toResponseDto(label)),
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: Math.ceil(result.total / result.limit),
+      },
+      message: 'Barcode labels retrieved successfully',
+    };
+  }
+
+  @Get('summary')
+  @RequirePermissions('BARCODE_LABEL_VIEW')
+  async getSummary() {
+    const counts = await this.barcodeLabelRepository.getTotalCounts();
+    return {
+      success: true,
+      data: counts,
+      message: 'Summary retrieved successfully',
     };
   }
 
@@ -126,6 +176,22 @@ export class BarcodeLabelController {
     };
   }
 
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('BARCODE_LABEL_UPDATE')
+  async update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateBarcodeLabelDto,
+    @Request() req: any,
+  ) {
+    const label = await this.updateBarcodeLabelUseCase.execute(id, updateDto, req.user?.userId);
+    return {
+      success: true,
+      data: this.toResponseDto(label),
+      message: 'Barcode label updated successfully',
+    };
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermissions('BARCODE_LABEL_DELETE')
@@ -168,6 +234,7 @@ export class BarcodeLabelController {
       barcodeValue: label.barcodeValue || '',
       barcodeType: label.barcodeType || 'Barcode',
       colorBlock: label.colorBlock || 'White',
+      status: (label as any).status || 'Active',
       createdBy: label.createdBy || undefined,
       createdOn: formatDateTime(label.createdOn),
     };

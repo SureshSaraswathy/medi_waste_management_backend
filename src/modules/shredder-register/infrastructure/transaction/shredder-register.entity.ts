@@ -61,6 +61,24 @@ export class ShredderRegisterEntity {
   @Column({ type: 'varchar', length: 20, name: 'status', default: 'Active' })
   status: 'Active' | 'Inactive';
 
+  @Column({ type: 'varchar', length: 100, name: 'input_source_type', nullable: true })
+  inputSourceType?: string;
+
+  @Column({ type: 'varchar', length: 100, name: 'input_source_ref', nullable: true })
+  inputSourceRef?: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'input_qty_kg', nullable: true })
+  inputQtyKg?: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'output_qty_kg', nullable: true })
+  outputQtyKg?: number;
+
+  @Column({ type: 'varchar', length: 50, name: 'blade_condition', nullable: true })
+  bladeCondition?: string;
+
+  @Column({ type: 'varchar', length: 200, name: 'output_dispatched_to', nullable: true })
+  outputDispatchedTo?: string;
+
   @Column({ type: 'uuid', name: 'created_by', nullable: true })
   createdBy: string | null;
 

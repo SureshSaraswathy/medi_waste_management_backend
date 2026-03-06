@@ -9,6 +9,8 @@ import { RoleModule } from './modules/role/role.module';
 import { PermissionModule } from './modules/permission/permission.module';
 import { StateModule } from './modules/state/state.module';
 import { DistrictModule } from './modules/district/district.module';
+import { EquipmentModule } from './modules/equipment/equipment.module';
+import { FinanceYearModule } from './modules/finance-year/finance-year.module';
 import { AreaModule } from './modules/area/area.module';
 import { ColorModule } from './modules/color/color.module';
 import { PcbZoneModule } from './modules/pcb-zone/pcb-zone.module';
@@ -103,6 +105,8 @@ import { HealthController } from './common/controllers/health.controller';
     PermissionModule,
     StateModule,
     DistrictModule,
+    EquipmentModule,
+    FinanceYearModule,
     AreaModule,
     ColorModule,
     PcbZoneModule,

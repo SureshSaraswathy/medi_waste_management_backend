@@ -12,6 +12,19 @@ export interface IBarcodeLabelRepository {
   findByHcf(hcfId: string): Promise<BarcodeLabel[]>;
   findByCompany(companyId: string): Promise<BarcodeLabel[]>;
   findByHcfCodeAndType(hcfCode: string, barcodeType: BarcodeType): Promise<BarcodeLabel[]>;
-  getLastSequenceNumber(hcfCode: string, barcodeType: BarcodeType): Promise<number>;
+  getLastSequenceNumber(): Promise<number>; // Global sequence, no parameters
+  update(barcodeLabel: BarcodeLabel): Promise<BarcodeLabel>;
   softDelete(barcodeLabelId: string): Promise<void>;
+  findWithPagination(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    colorBlock?: string;
+    barcodeType?: BarcodeType;
+    status?: string;
+    startDate?: Date;
+    endDate?: Date;
+    includeDeleted?: boolean;
+  }): Promise<{ data: BarcodeLabel[]; total: number; page: number; limit: number }>;
+  getTotalCounts(): Promise<{ total: number; barcodes: number; qrCodes: number }>;
 }

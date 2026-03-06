@@ -1,4 +1,4 @@
-import { BarcodeType, ColorBlock } from '../../infrastructure/transaction/barcode-label.entity';
+import { BarcodeType, ColorBlock, BarcodeStatus } from '../../infrastructure/transaction/barcode-label.entity';
 
 export class BarcodeLabel {
   private constructor(
@@ -10,6 +10,7 @@ export class BarcodeLabel {
     public readonly barcodeValue: string,
     public readonly barcodeType: BarcodeType,
     public readonly colorBlock: ColorBlock,
+    public status: BarcodeStatus,
     public readonly createdBy: string | null,
     public readonly createdOn: Date,
     public modifiedBy: string | null,
@@ -26,6 +27,7 @@ export class BarcodeLabel {
     barcodeValue: string;
     barcodeType: BarcodeType;
     colorBlock: ColorBlock;
+    status?: BarcodeStatus;
     createdBy?: string | null;
   }): BarcodeLabel {
     const now = new Date();
@@ -38,6 +40,7 @@ export class BarcodeLabel {
       params.barcodeValue,
       params.barcodeType,
       params.colorBlock,
+      params.status || BarcodeStatus.ACTIVE,
       params.createdBy || null,
       now,
       null,
@@ -55,6 +58,7 @@ export class BarcodeLabel {
     barcodeValue: string;
     barcodeType: BarcodeType;
     colorBlock: ColorBlock;
+    status: BarcodeStatus;
     createdBy: string | null;
     createdOn: Date;
     modifiedBy: string | null;
@@ -70,12 +74,25 @@ export class BarcodeLabel {
       data.barcodeValue,
       data.barcodeType,
       data.colorBlock,
+      data.status,
       data.createdBy,
       data.createdOn,
       data.modifiedBy,
       data.modifiedOn,
       data.isDeleted,
     );
+  }
+
+  updateColorBlock(colorBlock: ColorBlock, modifiedBy: string | null): void {
+    (this as any).colorBlock = colorBlock;
+    (this as any).modifiedBy = modifiedBy;
+    (this as any).modifiedOn = new Date();
+  }
+
+  updateStatus(status: BarcodeStatus, modifiedBy: string | null): void {
+    this.status = status;
+    (this as any).modifiedBy = modifiedBy;
+    (this as any).modifiedOn = new Date();
   }
 
   get barcodeLabelId(): string {

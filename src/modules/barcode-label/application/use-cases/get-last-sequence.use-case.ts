@@ -9,7 +9,7 @@ export class GetLastSequenceUseCase {
     private readonly barcodeLabelRepository: IBarcodeLabelRepository,
   ) {}
 
-  async execute(hcfCode: string, barcodeType: BarcodeType): Promise<number> {
-    return this.barcodeLabelRepository.getLastSequenceNumber(hcfCode, barcodeType);
+  async execute(): Promise<number> {
+    return this.barcodeLabelRepository.getLastSequenceNumber();
   }
 }

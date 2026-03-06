@@ -1,5 +1,5 @@
 import { IsUUID, IsDateString, IsString, IsEnum, IsInt, IsOptional } from 'class-validator';
-import { BarcodeType, ColorBlock } from '../../infrastructure/transaction/barcode-label.entity';
+import { BarcodeType, ColorBlock, BarcodeStatus } from '../../infrastructure/transaction/barcode-label.entity';
 
 export class BarcodeLabelResponseDto {
   @IsUUID()
@@ -25,6 +25,9 @@ export class BarcodeLabelResponseDto {
 
   @IsEnum(ColorBlock)
   colorBlock: ColorBlock;
+
+  @IsEnum(BarcodeStatus)
+  status: BarcodeStatus;
 
   @IsUUID()
   @IsOptional()

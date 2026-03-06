@@ -56,4 +56,30 @@ export class CreateShredderRegisterDto {
   @IsEnum(['Active', 'Inactive'])
   @IsOptional()
   status?: 'Active' | 'Inactive';
+
+  @IsString()
+  @IsOptional()
+  inputSourceType?: string;
+
+  @IsString()
+  @IsOptional()
+  inputSourceRef?: string;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  inputQtyKg?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  outputQtyKg?: number;
+
+  @IsString()
+  @IsOptional()
+  bladeCondition?: string;
+
+  @IsString()
+  @IsOptional()
+  outputDispatchedTo?: string;
 }

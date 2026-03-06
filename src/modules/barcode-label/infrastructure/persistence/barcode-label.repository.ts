@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IBarcodeLabelRepository, BARCODE_LABEL_REPOSITORY_TOKEN } from '../../domain/interfaces/barcode-label.repository.interface';
 import { BarcodeLabel } from '../../domain/entities/barcode-label.domain.entity';
-import { BarcodeLabelEntity, BarcodeType } from '../transaction/barcode-label.entity';
+import { BarcodeLabelEntity, BarcodeType, BarcodeStatus } from '../transaction/barcode-label.entity';
 
 @Injectable()
 export class BarcodeLabelRepository implements IBarcodeLabelRepository {
@@ -70,18 +70,120 @@ export class BarcodeLabelRepository implements IBarcodeLabelRepository {
     return entities.map((e) => this.toDomain(e));
   }
 
-  async getLastSequenceNumber(hcfCode: string, barcodeType: BarcodeType): Promise<number> {
+  async getLastSequenceNumber(): Promise<number> {
+    // Global sequence - get the highest sequence number across all barcodes
     const entity = await this.barcodeLabelRepo.findOne({
-      where: { hcfCode, barcodeType, isDeleted: false },
+      where: { isDeleted: false },
       order: { sequenceNumber: 'DESC' },
     });
     return entity ? entity.sequenceNumber : 0;
   }
 
+  async update(barcodeLabel: BarcodeLabel): Promise<BarcodeLabel> {
+    const entity = await this.barcodeLabelRepo.findOne({
+      where: { barcodeLabelId: barcodeLabel.barcodeLabelId },
+    });
+    if (!entity) {
+      throw new Error('Barcode label not found');
+    }
+    if ((barcodeLabel as any).colorBlock !== undefined) {
+      entity.colorBlock = (barcodeLabel as any).colorBlock;
+    }
+    if ((barcodeLabel as any).status !== undefined) {
+      entity.status = (barcodeLabel as any).status;
+    }
+    entity.modifiedBy = barcodeLabel.modifiedBy;
+    entity.modifiedOn = barcodeLabel.modifiedOn;
+    const saved = await this.barcodeLabelRepo.save(entity);
+    return this.toDomain(saved);
+  }
+
+  async findWithPagination(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    colorBlock?: string;
+    barcodeType?: BarcodeType;
+    status?: string;
+    startDate?: Date;
+    endDate?: Date;
+    includeDeleted?: boolean;
+  }): Promise<{ data: BarcodeLabel[]; total: number; page: number; limit: number }> {
+    const queryBuilder = this.barcodeLabelRepo.createQueryBuilder('label');
+
+    // Filter by deleted status
+    if (!params.includeDeleted) {
+      queryBuilder.andWhere('label.isDeleted = :isDeleted', { isDeleted: false });
+      if (params.status !== 'Deleted') {
+        queryBuilder.andWhere('label.status != :deletedStatus', { deletedStatus: 'Deleted' });
+      }
+    }
+
+    // Search filter
+    if (params.search) {
+      queryBuilder.andWhere(
+        '(label.barcodeValue ILIKE :search OR label.hcfCode ILIKE :search)',
+        { search: `%${params.search}%` }
+      );
+    }
+
+    // Color block filter
+    if (params.colorBlock) {
+      queryBuilder.andWhere('label.colorBlock = :colorBlock', { colorBlock: params.colorBlock });
+    }
+
+    // Barcode type filter
+    if (params.barcodeType) {
+      queryBuilder.andWhere('label.barcodeType = :barcodeType', { barcodeType: params.barcodeType });
+    }
+
+    // Status filter
+    if (params.status) {
+      queryBuilder.andWhere('label.status = :status', { status: params.status });
+    }
+
+    // Date range filter
+    if (params.startDate) {
+      queryBuilder.andWhere('label.createdOn >= :startDate', { startDate: params.startDate });
+    }
+    if (params.endDate) {
+      queryBuilder.andWhere('label.createdOn <= :endDate', { endDate: params.endDate });
+    }
+
+    // Get total count
+    const total = await queryBuilder.getCount();
+
+    // Apply pagination
+    const skip = (params.page - 1) * params.limit;
+    queryBuilder.skip(skip).take(params.limit);
+    queryBuilder.orderBy('label.createdOn', 'DESC');
+
+    const entities = await queryBuilder.getMany();
+    return {
+      data: entities.map((e) => this.toDomain(e)),
+      total,
+      page: params.page,
+      limit: params.limit,
+    };
+  }
+
+  async getTotalCounts(): Promise<{ total: number; barcodes: number; qrCodes: number }> {
+    const total = await this.barcodeLabelRepo.count({
+      where: { isDeleted: false, status: BarcodeStatus.ACTIVE },
+    });
+    const barcodes = await this.barcodeLabelRepo.count({
+      where: { isDeleted: false, status: BarcodeStatus.ACTIVE, barcodeType: BarcodeType.BARCODE },
+    });
+    const qrCodes = await this.barcodeLabelRepo.count({
+      where: { isDeleted: false, status: BarcodeStatus.ACTIVE, barcodeType: BarcodeType.QR_CODE },
+    });
+    return { total, barcodes, qrCodes };
+  }
+
   async softDelete(barcodeLabelId: string): Promise<void> {
     await this.barcodeLabelRepo.update(
       { barcodeLabelId },
-      { isDeleted: true, modifiedOn: new Date() },
+      { isDeleted: true, status: BarcodeStatus.DELETED, modifiedOn: new Date() },
     );
   }
 
@@ -95,6 +197,7 @@ export class BarcodeLabelRepository implements IBarcodeLabelRepository {
     entity.barcodeValue = barcodeLabel.barcodeValue;
     entity.barcodeType = barcodeLabel.barcodeType;
     entity.colorBlock = barcodeLabel.colorBlock;
+    entity.status = (barcodeLabel as any).status || BarcodeStatus.ACTIVE;
     entity.createdBy = barcodeLabel.createdBy;
     entity.createdOn = barcodeLabel.createdOn;
     entity.modifiedBy = barcodeLabel.modifiedBy;
@@ -113,6 +216,7 @@ export class BarcodeLabelRepository implements IBarcodeLabelRepository {
       barcodeValue: entity.barcodeValue,
       barcodeType: entity.barcodeType,
       colorBlock: entity.colorBlock,
+      status: entity.status || BarcodeStatus.ACTIVE,
       createdBy: entity.createdBy,
       createdOn: entity.createdOn,
       modifiedBy: entity.modifiedBy,
