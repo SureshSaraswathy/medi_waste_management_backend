@@ -94,8 +94,8 @@ export class GenerateBarcodeLabelsUseCase {
 
   /**
    * Generate barcode value:
-   * - For Barcode type: 13-digit numeric code only (no prefix)
-   * - For QR Code type: HCFUniqueID
+   * - For both Barcode and QR Code types: Use sequence number (13-digit numeric code)
+   * - This ensures uniqueness and matches the encoded value in the barcode/QR image
    */
   private generateBarcodeValue(
     hcf: any,
@@ -103,12 +103,7 @@ export class GenerateBarcodeLabelsUseCase {
     barcodeType: BarcodeType,
     hcfUniqueId: string,
   ): string {
-    if (barcodeType === BarcodeType.BARCODE) {
-      // Barcode: 13-digit numeric code only
-      return sequence.toString().padStart(13, '0');
-    } else {
-      // QR Code: Use HCFUniqueID
-      return hcfUniqueId;
-    }
+    // Both Barcode and QR Code use sequence number for barcodeValue to ensure uniqueness
+    return sequence.toString().padStart(13, '0');
   }
 }

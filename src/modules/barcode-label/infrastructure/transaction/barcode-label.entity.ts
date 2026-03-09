@@ -22,6 +22,7 @@ export enum ColorBlock {
 export enum BarcodeStatus {
   ACTIVE = 'Active',
   INACTIVE = 'Inactive',
+  COLLECTED = 'Collected',
   DELETED = 'Deleted',
 }
 

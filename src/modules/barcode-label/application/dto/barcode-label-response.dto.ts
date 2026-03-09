@@ -35,4 +35,8 @@ export class BarcodeLabelResponseDto {
 
   @IsDateString()
   createdOn: string;
+
+  @IsString()
+  @IsOptional()
+  hcfName?: string;
 }

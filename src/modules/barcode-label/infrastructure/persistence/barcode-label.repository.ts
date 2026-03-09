@@ -111,6 +111,19 @@ export class BarcodeLabelRepository implements IBarcodeLabelRepository {
   }): Promise<{ data: BarcodeLabel[]; total: number; page: number; limit: number }> {
     const queryBuilder = this.barcodeLabelRepo.createQueryBuilder('label');
 
+    // Select only required columns for better performance
+    queryBuilder.select([
+      'label.barcodeLabelId',
+      'label.barcodeValue',
+      'label.hcfCode',
+      'label.hcfId',
+      'label.companyId',
+      'label.colorBlock',
+      'label.barcodeType',
+      'label.status',
+      'label.createdOn',
+    ]);
+
     // Filter by deleted status
     if (!params.includeDeleted) {
       queryBuilder.andWhere('label.isDeleted = :isDeleted', { isDeleted: false });
@@ -150,7 +163,7 @@ export class BarcodeLabelRepository implements IBarcodeLabelRepository {
       queryBuilder.andWhere('label.createdOn <= :endDate', { endDate: params.endDate });
     }
 
-    // Get total count
+    // Get total count (before pagination - optimized)
     const total = await queryBuilder.getCount();
 
     // Apply pagination
@@ -158,7 +171,9 @@ export class BarcodeLabelRepository implements IBarcodeLabelRepository {
     queryBuilder.skip(skip).take(params.limit);
     queryBuilder.orderBy('label.createdOn', 'DESC');
 
+    // Execute query - get only selected columns
     const entities = await queryBuilder.getMany();
+    
     return {
       data: entities.map((e) => this.toDomain(e)),
       total,
@@ -167,17 +182,23 @@ export class BarcodeLabelRepository implements IBarcodeLabelRepository {
     };
   }
 
-  async getTotalCounts(): Promise<{ total: number; barcodes: number; qrCodes: number }> {
+  async getTotalCounts(): Promise<{ total: number; barcodes: number; qrCodes: number; collected: number; deactivated: number }> {
     const total = await this.barcodeLabelRepo.count({
-      where: { isDeleted: false, status: BarcodeStatus.ACTIVE },
+      where: { isDeleted: false },
     });
     const barcodes = await this.barcodeLabelRepo.count({
-      where: { isDeleted: false, status: BarcodeStatus.ACTIVE, barcodeType: BarcodeType.BARCODE },
+      where: { isDeleted: false, barcodeType: BarcodeType.BARCODE },
     });
     const qrCodes = await this.barcodeLabelRepo.count({
-      where: { isDeleted: false, status: BarcodeStatus.ACTIVE, barcodeType: BarcodeType.QR_CODE },
+      where: { isDeleted: false, barcodeType: BarcodeType.QR_CODE },
     });
-    return { total, barcodes, qrCodes };
+    const collected = await this.barcodeLabelRepo.count({
+      where: { isDeleted: false, status: BarcodeStatus.COLLECTED },
+    });
+    const deactivated = await this.barcodeLabelRepo.count({
+      where: { isDeleted: false, status: BarcodeStatus.INACTIVE },
+    });
+    return { total, barcodes, qrCodes, collected, deactivated };
   }
 
   async softDelete(barcodeLabelId: string): Promise<void> {

@@ -26,5 +26,5 @@ export interface IBarcodeLabelRepository {
     endDate?: Date;
     includeDeleted?: boolean;
   }): Promise<{ data: BarcodeLabel[]; total: number; page: number; limit: number }>;
-  getTotalCounts(): Promise<{ total: number; barcodes: number; qrCodes: number }>;
+  getTotalCounts(): Promise<{ total: number; barcodes: number; qrCodes: number; collected: number; deactivated: number }>;
 }

@@ -13,12 +13,14 @@ import { CollectWasteUseCase } from './application/use-cases/collect-waste.use-c
 import { WASTE_COLLECTION_REPOSITORY_TOKEN } from './domain/interfaces/waste-collection.repository.interface';
 import { HcfModule } from '../hcf/hcf.module';
 import { CompanyModule } from '../company/company.module';
+import { BarcodeLabelModule } from '../barcode-label/barcode-label.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([WasteCollectionEntity], 'transaction'),
     HcfModule,
     CompanyModule,
+    BarcodeLabelModule,
   ],
   controllers: [WasteCollectionController],
   providers: [

@@ -28,6 +28,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuditLogInterceptor } from '../../user/presentation/interceptors/audit-log.interceptor';
 import { BarcodeType } from '../infrastructure/transaction/barcode-label.entity';
 import { IBarcodeLabelRepository, BARCODE_LABEL_REPOSITORY_TOKEN } from '../domain/interfaces/barcode-label.repository.interface';
+import { IHcfRepository, HCF_REPOSITORY_TOKEN } from '../../hcf/domain/interfaces/hcf.repository.interface';
 import { Inject } from '@nestjs/common';
 
 @Controller('barcode-labels')
@@ -43,6 +44,8 @@ export class BarcodeLabelController {
     private readonly updateBarcodeLabelUseCase: UpdateBarcodeLabelUseCase,
     @Inject(BARCODE_LABEL_REPOSITORY_TOKEN)
     private readonly barcodeLabelRepository: IBarcodeLabelRepository,
+    @Inject(HCF_REPOSITORY_TOKEN)
+    private readonly hcfRepository: IHcfRepository,
   ) {}
 
   @Post()
@@ -95,9 +98,34 @@ export class BarcodeLabelController {
       endDate: endDate ? new Date(endDate) : undefined,
       includeDeleted: includeDeleted === 'true',
     });
+    
+    // Batch fetch HCF names for all labels (single query instead of N queries)
+    const hcfIds = [...new Set(result.data.map(label => label.hcfId))];
+    const hcfMap = new Map<string, string>();
+    
+    if (hcfIds.length > 0) {
+      // Batch fetch HCFs - get only hcfId and hcfName
+      const hcfs = await Promise.all(
+        hcfIds.map(id => this.hcfRepository.findById(id))
+      );
+      
+      hcfs.forEach(hcf => {
+        if (hcf) {
+          hcfMap.set(hcf.hcfId, hcf.hcfName);
+        }
+      });
+    }
+    
+    // Map labels with HCF names
+    const labelsWithHcfNames = result.data.map(label => {
+      const dto = this.toResponseDto(label);
+      (dto as any).hcfName = hcfMap.get(label.hcfId) || '';
+      return dto;
+    });
+    
     return {
       success: true,
-      data: result.data.map(label => this.toResponseDto(label)),
+      data: labelsWithHcfNames,
       pagination: {
         total: result.total,
         page: result.page,
@@ -237,6 +265,7 @@ export class BarcodeLabelController {
       status: (label as any).status || 'Active',
       createdBy: label.createdBy || undefined,
       createdOn: formatDateTime(label.createdOn),
+      hcfName: (label as any).hcfName || '',
     };
   }
 }
