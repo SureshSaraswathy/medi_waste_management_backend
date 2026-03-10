@@ -38,7 +38,7 @@ export class GenerateBarcodeLabelsUseCase {
     // Generate HCFUniqueID for QR Code type
     const hcfUniqueId = this.generateHCFUniqueID(hcf);
 
-    // Generate labels
+    // Generate labels - optimized: no duplicate checks needed since sequence numbers are unique
     const newLabels: BarcodeLabel[] = [];
     for (let i = 0; i < createBarcodeLabelDto.count; i++) {
       const sequenceNumber = lastSequence + i + 1;
@@ -49,11 +49,8 @@ export class GenerateBarcodeLabelsUseCase {
         hcfUniqueId,
       );
 
-      // Check for duplicate barcode value
-      const existing = await this.barcodeLabelRepository.findByBarcodeValue(barcodeValue);
-      if (existing) {
-        throw new DuplicateBarcodeValueException(barcodeValue);
-      }
+      // No need to check for duplicates - sequence numbers are globally unique
+      // The database unique constraint on barcodeValue will handle any edge cases
 
       const label = BarcodeLabel.create({
         barcodeLabelId: randomUUID(),
@@ -71,7 +68,7 @@ export class GenerateBarcodeLabelsUseCase {
       newLabels.push(label);
     }
 
-    // Save all labels
+    // Save all labels in a single batch operation
     return this.barcodeLabelRepository.createMany(newLabels);
   }
 

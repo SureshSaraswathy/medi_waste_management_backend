@@ -183,22 +183,30 @@ export class BarcodeLabelRepository implements IBarcodeLabelRepository {
   }
 
   async getTotalCounts(): Promise<{ total: number; barcodes: number; qrCodes: number; collected: number; deactivated: number }> {
-    const total = await this.barcodeLabelRepo.count({
-      where: { isDeleted: false },
-    });
-    const barcodes = await this.barcodeLabelRepo.count({
-      where: { isDeleted: false, barcodeType: BarcodeType.BARCODE },
-    });
-    const qrCodes = await this.barcodeLabelRepo.count({
-      where: { isDeleted: false, barcodeType: BarcodeType.QR_CODE },
-    });
-    const collected = await this.barcodeLabelRepo.count({
-      where: { isDeleted: false, status: BarcodeStatus.COLLECTED },
-    });
-    const deactivated = await this.barcodeLabelRepo.count({
-      where: { isDeleted: false, status: BarcodeStatus.INACTIVE },
-    });
-    return { total, barcodes, qrCodes, collected, deactivated };
+    // Use a single aggregate query for better performance
+    const result = await this.barcodeLabelRepo
+      .createQueryBuilder('label')
+      .select('COUNT(*)', 'total')
+      .addSelect('SUM(CASE WHEN label.barcodeType = :barcodeType THEN 1 ELSE 0 END)', 'barcodes')
+      .addSelect('SUM(CASE WHEN label.barcodeType = :qrCodeType THEN 1 ELSE 0 END)', 'qrCodes')
+      .addSelect('SUM(CASE WHEN label.status = :collectedStatus THEN 1 ELSE 0 END)', 'collected')
+      .addSelect('SUM(CASE WHEN label.status = :inactiveStatus THEN 1 ELSE 0 END)', 'deactivated')
+      .where('label.isDeleted = :isDeleted', { isDeleted: false })
+      .setParameters({
+        barcodeType: BarcodeType.BARCODE,
+        qrCodeType: BarcodeType.QR_CODE,
+        collectedStatus: BarcodeStatus.COLLECTED,
+        inactiveStatus: BarcodeStatus.INACTIVE,
+      })
+      .getRawOne();
+
+    return {
+      total: parseInt(result?.total || '0', 10),
+      barcodes: parseInt(result?.barcodes || '0', 10),
+      qrCodes: parseInt(result?.qrCodes || '0', 10),
+      collected: parseInt(result?.collected || '0', 10),
+      deactivated: parseInt(result?.deactivated || '0', 10),
+    };
   }
 
   async softDelete(barcodeLabelId: string): Promise<void> {
