@@ -1,10 +1,6 @@
-import { IsString, IsDateString, IsEnum, IsOptional } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
 
 export class UpdateContractDto {
-  @IsOptional()
-  @IsString()
-  contractNum?: string;
-
   @IsOptional()
   @IsDateString()
   startDate?: string;
@@ -20,4 +16,8 @@ export class UpdateContractDto {
   @IsOptional()
   @IsEnum(['Draft', 'Active', 'Expired'])
   status?: 'Draft' | 'Active' | 'Expired';
+
+  @IsOptional()
+  @IsUUID()
+  agreementTemplateId?: string;
 }

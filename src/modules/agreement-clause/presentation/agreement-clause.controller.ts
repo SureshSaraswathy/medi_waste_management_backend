@@ -55,9 +55,9 @@ export class AgreementClauseController {
 
   @Get()
   @RequirePermissions('AGREEMENT_CLAUSE_VIEW')
-  async findAll(@Query('agreementId') agreementId?: string, @Query('status') status?: string) {
+  async findAll(@Query('agreementTemplateId') agreementTemplateId?: string, @Query('status') status?: string) {
     try {
-      const clauses = await this.getAllUseCase.execute(agreementId, status);
+      const clauses = await this.getAllUseCase.execute(agreementTemplateId, status);
       return {
         success: true,
         data: clauses.map(c => this.toResponseDto(c)),
@@ -138,7 +138,7 @@ export class AgreementClauseController {
     return {
       id: clause.clauseId,
       agreementClauseID: clause.agreementClauseID,
-      agreementId: clause.agreementId,
+      agreementTemplateId: clause.agreementTemplateId,
       pointNum: clause.pointNum,
       pointTitle: clause.pointTitle,
       pointText: clause.pointText,

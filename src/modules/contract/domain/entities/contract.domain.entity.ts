@@ -5,6 +5,7 @@ export class Contract {
     public readonly contractNum: string,
     public readonly companyId: string,
     public readonly hcfId: string,
+    public agreementTemplateId: string | null,
     public startDate: Date,
     public endDate: Date,
     public billingType: 'Bed' | 'Kg' | 'Lumpsum',
@@ -22,6 +23,7 @@ export class Contract {
     contractNum: string;
     companyId: string;
     hcfId: string;
+    agreementTemplateId: string | null;
     startDate: Date;
     endDate: Date;
     billingType: 'Bed' | 'Kg' | 'Lumpsum';
@@ -35,6 +37,7 @@ export class Contract {
       params.contractNum,
       params.companyId,
       params.hcfId,
+      params.agreementTemplateId,
       params.startDate,
       params.endDate,
       params.billingType,
@@ -53,6 +56,7 @@ export class Contract {
     contractNum: string;
     companyId: string;
     hcfId: string;
+    agreementTemplateId: string | null;
     startDate: Date;
     endDate: Date;
     billingType: 'Bed' | 'Kg' | 'Lumpsum';
@@ -69,6 +73,7 @@ export class Contract {
       data.contractNum,
       data.companyId,
       data.hcfId,
+      data.agreementTemplateId,
       data.startDate,
       data.endDate,
       data.billingType,
@@ -82,16 +87,13 @@ export class Contract {
   }
 
   update(data: {
-    contractNum?: string;
     startDate?: Date;
     endDate?: Date;
     billingType?: 'Bed' | 'Kg' | 'Lumpsum';
     status?: 'Draft' | 'Active' | 'Expired';
+    agreementTemplateId?: string | null;
     modifiedBy?: string | null;
   }): void {
-    if (data.contractNum !== undefined) {
-      (this as any).contractNum = data.contractNum;
-    }
     if (data.startDate !== undefined) {
       this.startDate = data.startDate;
     }
@@ -103,6 +105,9 @@ export class Contract {
     }
     if (data.status !== undefined) {
       this.status = data.status;
+    }
+    if (data.agreementTemplateId !== undefined) {
+      this.agreementTemplateId = data.agreementTemplateId;
     }
     this.modifiedBy = data.modifiedBy || null;
     this.modifiedOn = new Date();

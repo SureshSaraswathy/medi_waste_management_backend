@@ -2,7 +2,7 @@ export class AgreementClause {
   private constructor(
     public readonly clauseId: string,
     public readonly agreementClauseID: string,
-    public readonly agreementId: string,
+    public readonly agreementTemplateId: string,
     public pointNum: string,
     public pointTitle: string,
     public pointText: string,
@@ -18,7 +18,7 @@ export class AgreementClause {
   static create(params: {
     clauseId: string;
     agreementClauseID: string;
-    agreementId: string;
+    agreementTemplateId: string;
     pointNum: string;
     pointTitle: string;
     pointText: string;
@@ -30,7 +30,7 @@ export class AgreementClause {
     return new AgreementClause(
       params.clauseId,
       params.agreementClauseID,
-      params.agreementId,
+      params.agreementTemplateId,
       params.pointNum,
       params.pointTitle,
       params.pointText,
@@ -47,7 +47,7 @@ export class AgreementClause {
   static reconstitute(data: {
     clauseId: string;
     agreementClauseID: string;
-    agreementId: string;
+    agreementTemplateId: string;
     pointNum: string;
     pointTitle: string;
     pointText: string;
@@ -62,7 +62,7 @@ export class AgreementClause {
     return new AgreementClause(
       data.clauseId,
       data.agreementClauseID,
-      data.agreementId,
+      data.agreementTemplateId,
       data.pointNum,
       data.pointTitle,
       data.pointText,

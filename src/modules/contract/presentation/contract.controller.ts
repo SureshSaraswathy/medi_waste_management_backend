@@ -133,6 +133,7 @@ export class ContractController {
       contractNum: contract.contractNum,
       companyId: contract.companyId,
       hcfId: contract.hcfId,
+      agreementTemplateId: contract.agreementTemplateId,
       startDate: formatDate(contract.startDate),
       endDate: formatDate(contract.endDate),
       billingType: contract.billingType,

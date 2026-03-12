@@ -13,11 +13,11 @@ export class CreateAgreementClauseUseCase {
   ) {}
 
   async execute(dto: CreateAgreementClauseDto, createdBy?: string | null): Promise<AgreementClause> {
-    // Check if point number already exists for this agreement
-    const existing = await this.repository.findAll(dto.agreementId);
+    // Check if point number already exists for this agreement template
+    const existing = await this.repository.findAll(dto.agreementTemplateId);
     const duplicate = existing.find(c => c.pointNum === dto.pointNum && !c.isDeleted);
     if (duplicate) {
-      throw new AgreementClausePointNumExistsException(dto.pointNum, dto.agreementId);
+      throw new AgreementClausePointNumExistsException(dto.pointNum, dto.agreementTemplateId);
     }
 
     const clauseId = randomUUID();
@@ -26,7 +26,7 @@ export class CreateAgreementClauseUseCase {
     const clause = AgreementClause.create({
       clauseId,
       agreementClauseID,
-      agreementId: dto.agreementId,
+      agreementTemplateId: dto.agreementTemplateId,
       pointNum: dto.pointNum,
       pointTitle: dto.pointTitle,
       pointText: dto.pointText,

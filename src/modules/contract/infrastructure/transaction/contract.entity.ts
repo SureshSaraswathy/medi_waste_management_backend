@@ -28,6 +28,9 @@ export class ContractEntity {
   @Column({ type: 'uuid', name: 'hcf_id' })
   hcfId: string;
 
+  @Column({ type: 'uuid', name: 'agreement_template_id', nullable: true })
+  agreementTemplateId: string | null;
+
   @Column({ type: 'date', name: 'start_date' })
   startDate: Date;
 

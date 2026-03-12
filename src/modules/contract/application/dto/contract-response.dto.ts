@@ -4,6 +4,7 @@ export class ContractResponseDto {
   contractNum: string;
   companyId: string;
   hcfId: string;
+  agreementTemplateId: string | null;
   startDate: string;
   endDate: string;
   billingType: 'Bed' | 'Kg' | 'Lumpsum';

@@ -17,12 +17,12 @@ export class UpdateAgreementClauseUseCase {
       throw new AgreementClauseNotFoundException(id);
     }
 
-    // Check if point number already exists for this agreement (if changing pointNum)
+    // Check if point number already exists for this agreement template (if changing pointNum)
     if (dto.pointNum && dto.pointNum !== clause.pointNum) {
-      const existing = await this.repository.findAll(clause.agreementId);
+      const existing = await this.repository.findAll(clause.agreementTemplateId);
       const duplicate = existing.find(c => c.pointNum === dto.pointNum && c.clauseId !== id && !c.isDeleted);
       if (duplicate) {
-        throw new AgreementClausePointNumExistsException(dto.pointNum, clause.agreementId);
+        throw new AgreementClausePointNumExistsException(dto.pointNum, clause.agreementTemplateId);
       }
     }
 

@@ -9,7 +9,7 @@ export class GetAllAgreementClausesUseCase {
     private readonly repository: IAgreementClauseRepository,
   ) {}
 
-  async execute(agreementId?: string, status?: string): Promise<AgreementClause[]> {
-    return this.repository.findAll(agreementId, status);
+  async execute(agreementTemplateId?: string, status?: string): Promise<AgreementClause[]> {
+    return this.repository.findAll(agreementTemplateId, status);
   }
 }

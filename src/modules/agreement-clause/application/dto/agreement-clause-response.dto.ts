@@ -1,7 +1,8 @@
 export class AgreementClauseResponseDto {
   id: string;
   agreementClauseID: string;
-  agreementId: string;
+  agreementTemplateId: string;
+  agreementTemplateName?: string; // Added for frontend display
   pointNum: string;
   pointTitle: string;
   pointText: string;

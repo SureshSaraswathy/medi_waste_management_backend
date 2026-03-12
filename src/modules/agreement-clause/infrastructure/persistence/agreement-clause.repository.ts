@@ -15,19 +15,19 @@ export class AgreementClauseRepository implements IAgreementClauseRepository {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(agreementId?: string, status?: string): Promise<AgreementClause[]> {
+  async findAll(agreementTemplateId?: string, status?: string): Promise<AgreementClause[]> {
     const query = this.repository.createQueryBuilder('clause')
       .where('clause.isDeleted = :isDeleted', { isDeleted: false });
 
-    if (agreementId) {
-      query.andWhere('clause.agreementId = :agreementId', { agreementId });
+    if (agreementTemplateId) {
+      query.andWhere('clause.agreementTemplateId = :agreementTemplateId', { agreementTemplateId });
     }
     if (status) {
       query.andWhere('clause.status = :status', { status });
     }
 
     const entities = await query
-      .orderBy('clause.agreementId', 'ASC')
+      .orderBy('clause.agreementTemplateId', 'ASC')
       .addOrderBy('clause.sequenceNo', 'ASC')
       .getMany();
     
@@ -81,7 +81,7 @@ export class AgreementClauseRepository implements IAgreementClauseRepository {
     return AgreementClause.reconstitute({
       clauseId: entity.clauseId,
       agreementClauseID: entity.agreementClauseID,
-      agreementId: entity.agreementId,
+      agreementTemplateId: entity.agreementTemplateId,
       pointNum: entity.pointNum,
       pointTitle: entity.pointTitle,
       pointText: entity.pointText,
@@ -99,7 +99,7 @@ export class AgreementClauseRepository implements IAgreementClauseRepository {
     return {
       clauseId: clause.clauseId,
       agreementClauseID: clause.agreementClauseID,
-      agreementId: clause.agreementId,
+      agreementTemplateId: clause.agreementTemplateId,
       pointNum: clause.pointNum,
       pointTitle: clause.pointTitle,
       pointText: clause.pointText,

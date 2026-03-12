@@ -11,3 +11,11 @@ export class ContractAlreadyExistsException extends Error {
     this.name = 'ContractAlreadyExistsException';
   }
 }
+
+import { BadRequestException } from '@nestjs/common';
+
+export class ActiveContractExistsException extends BadRequestException {
+  constructor(hcfId: string) {
+    super(`An active or non-expired contract already exists for HCF ${hcfId}. Please wait until the existing contract expires before creating a new one.`);
+  }
+}

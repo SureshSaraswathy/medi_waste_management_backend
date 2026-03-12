@@ -8,8 +8,8 @@ import {
 } from 'typeorm';
 
 @Entity('agreement_clauses')
-@Index(['agreementId', 'pointNum'], { unique: true, where: 'is_deleted = false' })
-@Index(['agreementId', 'sequenceNo'], { where: 'is_deleted = false' })
+@Index(['agreementTemplateId', 'pointNum'], { unique: true, where: 'is_deleted = false' })
+@Index(['agreementTemplateId', 'sequenceNo'], { where: 'is_deleted = false' })
 @Index(['status'], { where: 'is_deleted = false' })
 export class AgreementClauseEntity {
   @PrimaryColumn({ type: 'uuid', name: 'clause_id' })
@@ -18,8 +18,8 @@ export class AgreementClauseEntity {
   @Column({ type: 'varchar', length: 100, name: 'agreement_clause_id_display' })
   agreementClauseID: string;
 
-  @Column({ type: 'uuid', name: 'agreement_id' })
-  agreementId: string;
+  @Column({ type: 'uuid', name: 'agreement_template_id' })
+  agreementTemplateId: string;
 
   @Column({ type: 'varchar', length: 50, name: 'point_num' })
   pointNum: string;

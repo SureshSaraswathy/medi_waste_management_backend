@@ -29,6 +29,8 @@ import { TrainingCertificateModule } from './modules/training-certificate/traini
 import { ContractModule } from './modules/contract/contract.module';
 import { AgreementModule } from './modules/agreement/agreement.module';
 import { AgreementClauseModule } from './modules/agreement-clause/agreement-clause.module';
+import { AgreementTemplateModule } from './modules/agreement-template/agreement-template.module';
+import { PlaceholderMasterModule } from './modules/placeholder-master/placeholder-master.module';
 import { RouteAssignmentModule } from './modules/route-assignment/route-assignment.module';
 import { WasteCollectionModule } from './modules/waste-collection/waste-collection.module';
 import { BarcodeLabelModule } from './modules/barcode-label/barcode-label.module';
@@ -124,6 +126,8 @@ import { HealthController } from './common/controllers/health.controller';
     ContractModule,
     AgreementModule,
     AgreementClauseModule,
+    AgreementTemplateModule,
+    PlaceholderMasterModule,
     RouteAssignmentModule,
     WasteCollectionModule,
     BarcodeLabelModule,

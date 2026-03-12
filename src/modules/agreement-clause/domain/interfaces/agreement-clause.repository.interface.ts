@@ -3,7 +3,7 @@ import { AgreementClause } from '../entities/agreement-clause.domain.entity';
 export const AGREEMENT_CLAUSE_REPOSITORY_TOKEN = 'AGREEMENT_CLAUSE_REPOSITORY';
 
 export interface IAgreementClauseRepository {
-  findAll(agreementId?: string, status?: string): Promise<AgreementClause[]>;
+  findAll(agreementTemplateId?: string, status?: string): Promise<AgreementClause[]>;
   findOne(id: string): Promise<AgreementClause | null>;
   create(clause: AgreementClause): Promise<AgreementClause>;
   update(clause: AgreementClause): Promise<AgreementClause>;

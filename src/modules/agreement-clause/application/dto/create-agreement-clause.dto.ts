@@ -2,7 +2,7 @@ import { IsString, IsUUID, IsInt, IsEnum, IsOptional } from 'class-validator';
 
 export class CreateAgreementClauseDto {
   @IsUUID()
-  agreementId: string;
+  agreementTemplateId: string;
 
   @IsString()
   pointNum: string;

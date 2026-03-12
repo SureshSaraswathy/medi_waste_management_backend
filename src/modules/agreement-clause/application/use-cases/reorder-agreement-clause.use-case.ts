@@ -16,8 +16,8 @@ export class ReorderAgreementClauseUseCase {
       throw new AgreementClauseNotFoundException(id);
     }
 
-    // Get all clauses for the same agreement
-    const allClauses = await this.repository.findAll(clause.agreementId);
+    // Get all clauses for the same agreement template
+    const allClauses = await this.repository.findAll(clause.agreementTemplateId);
     
     // Find the clause that currently has the target sequence number
     const targetClause = allClauses.find(c => c.sequenceNo === dto.newSequenceNo && c.clauseId !== id);

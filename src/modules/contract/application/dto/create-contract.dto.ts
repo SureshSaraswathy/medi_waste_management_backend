@@ -1,14 +1,14 @@
-import { IsString, IsUUID, IsDateString, IsEnum, IsOptional } from 'class-validator';
+import { IsUUID, IsDateString, IsEnum, IsOptional } from 'class-validator';
 
 export class CreateContractDto {
-  @IsString()
-  contractNum: string;
-
   @IsUUID()
   companyId: string;
 
   @IsUUID()
   hcfId: string;
+
+  @IsUUID()
+  agreementTemplateId: string;
 
   @IsDateString()
   startDate: string;

@@ -13,18 +13,22 @@ export class CreateAgreementUseCase {
   ) {}
 
   async execute(dto: CreateAgreementDto, createdBy?: string | null): Promise<Agreement> {
-    // Check if agreement number already exists for this contract
-    if (dto.agreementNum) {
+    // Auto-generate agreement number if not provided
+    let agreementNum = dto.agreementNum;
+    
+    if (!agreementNum) {
+      agreementNum = await this.generateAgreementNumber();
+    } else {
+      // Check if agreement number already exists for this contract
       const existing = await this.repository.findAll(dto.contractId);
-      const duplicate = existing.find(a => a.agreementNum === dto.agreementNum && !a.isDeleted);
+      const duplicate = existing.find(a => a.agreementNum === agreementNum && !a.isDeleted);
       if (duplicate) {
-        throw new AgreementAlreadyExistsException(dto.agreementNum, dto.contractId);
+        throw new AgreementAlreadyExistsException(agreementNum, dto.contractId);
       }
     }
 
     const agreementId = randomUUID();
     const agreementID = `AGR${String(Date.now()).slice(-6)}`;
-    const agreementNum = dto.agreementNum || `AGR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
     
     const agreement = Agreement.create({
       agreementId,
@@ -37,5 +41,32 @@ export class CreateAgreementUseCase {
     });
 
     return this.repository.create(agreement);
+  }
+
+  private async generateAgreementNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `AGR-${year}-`;
+    
+    // Find all agreements for this year
+    const allAgreements = await this.repository.findAll();
+    const yearAgreements = allAgreements.filter(
+      (a) => a.agreementNum.startsWith(prefix) && !a.isDeleted
+    );
+    
+    if (yearAgreements.length === 0) {
+      return `${prefix}0001`;
+    }
+    
+    // Extract the highest sequence number
+    const sequences = yearAgreements.map((a) => {
+      const seq = a.agreementNum.replace(prefix, '');
+      return parseInt(seq, 10);
+    });
+    
+    const maxSeq = Math.max(...sequences);
+    const nextSeq = maxSeq + 1;
+    const nextSeqStr = nextSeq.toString().padStart(4, '0');
+    
+    return `${prefix}${nextSeqStr}`;
   }
 }

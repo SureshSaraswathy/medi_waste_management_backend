@@ -6,8 +6,8 @@ export class AgreementClauseNotFoundException extends Error {
 }
 
 export class AgreementClausePointNumExistsException extends Error {
-  constructor(pointNum: string, agreementId: string) {
-    super(`Point number ${pointNum} already exists for agreement ${agreementId}`);
+  constructor(pointNum: string, agreementTemplateId: string) {
+    super(`Point number ${pointNum} already exists for agreement template ${agreementTemplateId}`);
     this.name = 'AgreementClausePointNumExistsException';
   }
 }
