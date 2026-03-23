@@ -18,6 +18,7 @@ import { DeleteInvoiceUseCase } from './application/use-cases/delete-invoice.use
 import { PostInvoiceUseCase } from './application/use-cases/post-invoice.use-case';
 import { InvoiceNumberService } from './application/services/invoice-number.service';
 import { InvoiceCalculationService } from './application/services/invoice-calculation.service';
+import { InvoiceGstCalculationService } from './application/services/invoice-gst-calculation.service';
 import { InvoiceLockService } from './application/services/invoice-lock.service';
 import { InvoicePdfService } from './application/services/invoice-pdf.service';
 import { InvoiceQueueService } from './application/services/invoice-queue.service';
@@ -67,6 +68,7 @@ import { InvoiceDownloadController } from './presentation/invoice-download.contr
     PostInvoiceUseCase,
     InvoiceNumberService,
     InvoiceCalculationService,
+    InvoiceGstCalculationService,
     InvoiceLockService,
     InvoicePdfService,
     InvoiceQueueService,

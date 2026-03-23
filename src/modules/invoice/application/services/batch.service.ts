@@ -827,6 +827,7 @@ export class BatchService {
   async postDraftInvoices(invoiceIds: string[], invoiceDate: Date, createdBy?: string): Promise<{ success: number; failed: number }> {
     let successCount = 0;
     let failedCount = 0;
+    const touchedBatchIds = new Set<string>();
 
     for (const invoiceId of invoiceIds) {
       try {
@@ -834,6 +835,9 @@ export class BatchService {
         if (!invoice || invoice.status !== InvoiceStatus.DRAFT) {
           failedCount++;
           continue;
+        }
+        if (invoice.batchId) {
+          touchedBatchIds.add(invoice.batchId);
         }
 
         // Generate invoice number if not already generated
@@ -859,6 +863,34 @@ export class BatchService {
       } catch (error: any) {
         console.error(`Failed to post invoice ${invoiceId}:`, error);
         failedCount++;
+      }
+    }
+
+    // Reconcile batch status/count after posting draft invoices.
+    for (const batchId of touchedBatchIds) {
+      try {
+        const batch = await this.batchRepository.findById(batchId);
+        if (!batch) continue;
+
+        const batchInvoices = await this.invoiceRepository.findByBatchId(batchId);
+        const remainingDrafts = batchInvoices.filter(inv => inv.status === InvoiceStatus.DRAFT).length;
+
+        // Keep totalRecords aligned with currently editable draft rows.
+        batch.totalRecords = remainingDrafts;
+
+        // Mark batch as posted only when all draft invoices are posted.
+        if (remainingDrafts === 0) {
+          batch.status = BatchStatus.POSTED;
+          batch.postedAt = new Date();
+        } else {
+          batch.status = BatchStatus.STAGED;
+          batch.postedAt = null;
+        }
+
+        await this.batchRepository.update(batch);
+      } catch (error) {
+        // Do not fail posting flow if reconciliation fails for one batch.
+        console.error(`Failed to reconcile batch ${batchId} after draft posting:`, error);
       }
     }
 

@@ -3,15 +3,23 @@ import { IInvoiceRepository, INVOICE_REPOSITORY_TOKEN } from '../../domain/inter
 import { Invoice } from '../../domain/entities/invoice.domain.entity';
 import { UpdateInvoiceDto } from '../dto/update-invoice.dto';
 import { InvoiceCalculationService } from '../services/invoice-calculation.service';
+import { InvoiceGstCalculationService } from '../services/invoice-gst-calculation.service';
 import { InvoiceNotFoundException, InvoiceLockedException, InvalidInvoiceDataException } from '../../domain/exceptions/invoice.exceptions';
-import { BillingOption, InvoiceStatus } from '../../infrastructure/transaction/invoice.entity';
+import { BillingOption, InvoiceGenerationType, InvoiceStatus } from '../../infrastructure/transaction/invoice.entity';
+import { ICompanyRepository, COMPANY_REPOSITORY_TOKEN } from '../../../company/domain/interfaces/company.repository.interface';
+import { IHcfRepository, HCF_REPOSITORY_TOKEN } from '../../../hcf/domain/interfaces/hcf.repository.interface';
 
 @Injectable()
 export class UpdateInvoiceUseCase {
   constructor(
     @Inject(INVOICE_REPOSITORY_TOKEN)
     private readonly invoiceRepository: IInvoiceRepository,
+    @Inject(COMPANY_REPOSITORY_TOKEN)
+    private readonly companyRepository: ICompanyRepository,
+    @Inject(HCF_REPOSITORY_TOKEN)
+    private readonly hcfRepository: IHcfRepository,
     private readonly invoiceCalculationService: InvoiceCalculationService,
+    private readonly invoiceGstCalculationService: InvoiceGstCalculationService,
   ) {}
 
   async execute(invoiceId: string, updateInvoiceDto: UpdateInvoiceDto, modifiedBy?: string): Promise<Invoice> {
@@ -29,14 +37,38 @@ export class UpdateInvoiceUseCase {
       throw new InvoiceLockedException('Posted invoices cannot be edited');
     }
 
+    const companyEntity = await this.companyRepository.getEntityById(invoice.companyId);
+    const hcf = await this.hcfRepository.findById(invoice.hcfId);
+
     // Validate billing data if billing option is being updated
     if (updateInvoiceDto.billingOption) {
       this.validateBillingData(updateInvoiceDto);
     }
 
-    // Calculate new amounts if billing fields are updated
-    let calculationResult = null;
-    if (
+    const isManualDraft = invoice.generationType === InvoiceGenerationType.MANUAL && invoice.status === InvoiceStatus.DRAFT;
+
+    let calculationResult: ReturnType<InvoiceCalculationService['calculateInvoiceAmounts']> | null = null;
+
+    if (isManualDraft) {
+      const billingOption = updateInvoiceDto.billingOption ?? invoice.billingOption;
+      const billingDays = updateInvoiceDto.billingDays !== undefined ? updateInvoiceDto.billingDays : invoice.billingDays;
+      if (billingOption === BillingOption.BED_WISE && (!billingDays || billingDays < 1)) {
+        throw new InvalidInvoiceDataException('Billing days is required and must be at least 1 for bed-wise manual invoices');
+      }
+
+      calculationResult = this.invoiceCalculationService.calculateInvoiceAmounts({
+        billingOption,
+        bedCount: updateInvoiceDto.bedCount ?? invoice.bedCount,
+        bedRate: updateInvoiceDto.bedRate ?? invoice.bedRate,
+        billingDays,
+        weightInKg: updateInvoiceDto.weightInKg ?? invoice.weightInKg,
+        kgRate: updateInvoiceDto.kgRate ?? invoice.kgRate,
+        lumpsumAmount: updateInvoiceDto.lumpsumAmount ?? invoice.lumpsumAmount,
+        isGSTExempt: hcf?.isGSTExempt ?? false,
+        isInterState: this.invoiceGstCalculationService.isInterStateFromMasters(companyEntity, hcf),
+        gstRate: this.invoiceGstCalculationService.getGstRatePercentFromCompany(companyEntity),
+      });
+    } else if (
       updateInvoiceDto.bedCount !== undefined ||
       updateInvoiceDto.bedRate !== undefined ||
       updateInvoiceDto.weightInKg !== undefined ||
@@ -48,13 +80,16 @@ export class UpdateInvoiceUseCase {
         billingOption,
         bedCount: updateInvoiceDto.bedCount ?? invoice.bedCount,
         bedRate: updateInvoiceDto.bedRate ?? invoice.bedRate,
+        billingDays: updateInvoiceDto.billingDays ?? invoice.billingDays,
         weightInKg: updateInvoiceDto.weightInKg ?? invoice.weightInKg,
         kgRate: updateInvoiceDto.kgRate ?? invoice.kgRate,
         lumpsumAmount: updateInvoiceDto.lumpsumAmount ?? invoice.lumpsumAmount,
-        isGSTExempt: false, // TODO: Get from HCF
-        isInterState: false, // TODO: Determine based on company and HCF state
+        isGSTExempt: false,
+        isInterState: false,
       });
     }
+
+    const useCalc = calculationResult !== null;
 
     // Update invoice
     invoice.update({
@@ -68,12 +103,12 @@ export class UpdateInvoiceUseCase {
       weightInKg: updateInvoiceDto.weightInKg,
       kgRate: updateInvoiceDto.kgRate,
       lumpsumAmount: updateInvoiceDto.lumpsumAmount,
-      taxableValue: updateInvoiceDto.taxableValue ?? calculationResult?.taxableValue,
-      igst: updateInvoiceDto.igst ?? calculationResult?.igst,
-      cgst: updateInvoiceDto.cgst ?? calculationResult?.cgst,
-      sgst: updateInvoiceDto.sgst ?? calculationResult?.sgst,
-      roundOff: updateInvoiceDto.roundOff ?? calculationResult?.roundOff,
-      invoiceValue: updateInvoiceDto.invoiceValue ?? calculationResult?.invoiceValue,
+      taxableValue: useCalc ? calculationResult!.taxableValue : updateInvoiceDto.taxableValue,
+      igst: useCalc ? calculationResult!.igst : updateInvoiceDto.igst,
+      cgst: useCalc ? calculationResult!.cgst : updateInvoiceDto.cgst,
+      sgst: useCalc ? calculationResult!.sgst : updateInvoiceDto.sgst,
+      roundOff: useCalc ? calculationResult!.roundOff : updateInvoiceDto.roundOff,
+      invoiceValue: useCalc ? calculationResult!.invoiceValue : updateInvoiceDto.invoiceValue,
       notes: updateInvoiceDto.notes,
       modifiedBy: modifiedBy || null,
     });

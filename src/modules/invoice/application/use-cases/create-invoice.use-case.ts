@@ -8,6 +8,8 @@ import { Invoice } from '../../domain/entities/invoice.domain.entity';
 import { CreateInvoiceDto } from '../dto/create-invoice.dto';
 import { InvoiceNumberService } from '../services/invoice-number.service';
 import { InvoiceCalculationService } from '../services/invoice-calculation.service';
+import { InvoiceGstCalculationService } from '../services/invoice-gst-calculation.service';
+import { billingOptionFromHcfMaster } from '../utils/invoice-gst-calculation.util';
 import { InvoiceLockService } from '../services/invoice-lock.service';
 import { NotificationHelperService } from '../../../notification/notification-helper.service';
 import { NotificationType } from '../../../notification/infrastructure/persistence/notification.entity';
@@ -15,7 +17,7 @@ import { NotificationPriority } from '../../../notification/infrastructure/persi
 import { DuplicateInvoiceException, InvalidInvoiceDataException } from '../../domain/exceptions/invoice.exceptions';
 import { HcfNotFoundException } from '../../../hcf/domain/exceptions/hcf.exceptions';
 import { CompanyNotFoundException } from '../../../company/domain/exceptions/company.exceptions';
-import { BillingOption, InvoiceGenerationType, InvoiceStatus } from '../../infrastructure/transaction/invoice.entity';
+import { BillingOption, BillingType, InvoiceGenerationType, InvoiceStatus } from '../../infrastructure/transaction/invoice.entity';
 import { InvoiceBatchEntity, BatchType, BatchStatus } from '../../infrastructure/transaction/invoice-batch.entity';
 
 @Injectable()
@@ -31,6 +33,7 @@ export class CreateInvoiceUseCase {
     private readonly batchRepository: IBatchRepository,
     private readonly invoiceNumberService: InvoiceNumberService,
     private readonly invoiceCalculationService: InvoiceCalculationService,
+    private readonly invoiceGstCalculationService: InvoiceGstCalculationService,
     private readonly invoiceLockService: InvoiceLockService,
     @Inject(forwardRef(() => NotificationHelperService))
     private readonly notificationHelper: NotificationHelperService,
@@ -49,8 +52,16 @@ export class CreateInvoiceUseCase {
       throw new CompanyNotFoundException(createInvoiceDto.companyId);
     }
 
-    // Validate billing data based on billing option
-    this.validateBillingData(createInvoiceDto);
+    const generationType = createInvoiceDto.generationType ?? InvoiceGenerationType.MANUAL;
+    const fromHcfOption = billingOptionFromHcfMaster(hcf.billingOption);
+    const fromHcfBillingType = this.billingTypeFromHcfMaster(hcf.billingType);
+    const effectiveBillingOption =
+      generationType === InvoiceGenerationType.MANUAL && fromHcfOption ? fromHcfOption : createInvoiceDto.billingOption;
+    const effectiveBillingType =
+      generationType === InvoiceGenerationType.MANUAL && fromHcfBillingType ? fromHcfBillingType : createInvoiceDto.billingType;
+
+    // Validate billing data based on effective option (manual invoices follow HCF master option)
+    this.validateBillingData(createInvoiceDto, effectiveBillingOption, generationType === InvoiceGenerationType.MANUAL);
 
     const invoiceDate = new Date(createInvoiceDto.invoiceDate);
     const dueDate = new Date(createInvoiceDto.dueDate);
@@ -72,11 +83,8 @@ export class CreateInvoiceUseCase {
       }
     }
 
-    // Handle batch creation for manual DRAFT invoices
+    // Handle batch creation for manual DRAFT invoices (invoice number is always assigned below)
     let batchId: string | null = null;
-    let invoiceNumber = '';
-    let financialYear = '';
-    let sequenceNumber = 0;
     const invoiceStatus = createInvoiceDto.status ?? InvoiceStatus.DRAFT;
 
     if (createInvoiceDto.generationType === InvoiceGenerationType.MANUAL && invoiceStatus === InvoiceStatus.DRAFT) {
@@ -106,26 +114,43 @@ export class CreateInvoiceUseCase {
       }
 
       batchId = batch.id;
-      // Don't generate invoice number for DRAFT invoices - will be generated on post
-    } else {
-      // Generate invoice number for non-DRAFT invoices
-      const numberResult = await this.invoiceNumberService.generateInvoiceNumber(invoiceDate);
-      invoiceNumber = numberResult.invoiceNumber;
-      financialYear = numberResult.financialYear;
-      sequenceNumber = numberResult.sequenceNumber;
     }
+
+    // Invoice numbers are always generated on create (including manual drafts)
+    const numberResult = await this.invoiceNumberService.generateInvoiceNumber(invoiceDate);
+    const invoiceNumber = numberResult.invoiceNumber;
+    const financialYear = numberResult.financialYear;
+    const sequenceNumber = numberResult.sequenceNumber;
+
+    const companyEntity = await this.companyRepository.getEntityById(createInvoiceDto.companyId);
 
     // Calculate invoice amounts
     const calculationResult = this.invoiceCalculationService.calculateInvoiceAmounts({
-      billingOption: createInvoiceDto.billingOption,
+      billingOption: effectiveBillingOption,
       bedCount: createInvoiceDto.bedCount,
       bedRate: createInvoiceDto.bedRate,
+      billingDays: createInvoiceDto.billingDays,
       weightInKg: createInvoiceDto.weightInKg,
       kgRate: createInvoiceDto.kgRate,
       lumpsumAmount: createInvoiceDto.lumpsumAmount,
       isGSTExempt: hcf.isGSTExempt,
-      isInterState: false, // TODO: Determine based on company and HCF state
+      isInterState:
+        generationType === InvoiceGenerationType.MANUAL
+          ? this.invoiceGstCalculationService.isInterStateFromMasters(companyEntity, hcf)
+          : false,
+      gstRate:
+        generationType === InvoiceGenerationType.MANUAL
+          ? this.invoiceGstCalculationService.getGstRatePercentFromCompany(companyEntity)
+          : undefined,
     });
+
+    const isManual = generationType === InvoiceGenerationType.MANUAL;
+    const taxableValue = isManual ? calculationResult.taxableValue : createInvoiceDto.taxableValue ?? calculationResult.taxableValue;
+    const igst = isManual ? calculationResult.igst : createInvoiceDto.igst ?? calculationResult.igst;
+    const cgst = isManual ? calculationResult.cgst : createInvoiceDto.cgst ?? calculationResult.cgst;
+    const sgst = isManual ? calculationResult.sgst : createInvoiceDto.sgst ?? calculationResult.sgst;
+    const roundOff = isManual ? calculationResult.roundOff : createInvoiceDto.roundOff ?? calculationResult.roundOff;
+    const invoiceValue = isManual ? calculationResult.invoiceValue : createInvoiceDto.invoiceValue ?? calculationResult.invoiceValue;
 
     // Create invoice
     const invoice = Invoice.create({
@@ -135,21 +160,21 @@ export class CreateInvoiceUseCase {
       invoiceNumber,
       invoiceDate,
       dueDate,
-      billingType: createInvoiceDto.billingType,
+      billingType: effectiveBillingType,
       billingDays: createInvoiceDto.billingDays,
-      billingOption: createInvoiceDto.billingOption,
+      billingOption: effectiveBillingOption,
       generationType: createInvoiceDto.generationType ?? InvoiceGenerationType.MANUAL,
       bedCount: createInvoiceDto.bedCount,
       bedRate: createInvoiceDto.bedRate,
       weightInKg: createInvoiceDto.weightInKg,
       kgRate: createInvoiceDto.kgRate,
       lumpsumAmount: createInvoiceDto.lumpsumAmount,
-      taxableValue: createInvoiceDto.taxableValue ?? calculationResult.taxableValue,
-      igst: createInvoiceDto.igst ?? calculationResult.igst,
-      cgst: createInvoiceDto.cgst ?? calculationResult.cgst,
-      sgst: createInvoiceDto.sgst ?? calculationResult.sgst,
-      roundOff: createInvoiceDto.roundOff ?? calculationResult.roundOff,
-      invoiceValue: createInvoiceDto.invoiceValue ?? calculationResult.invoiceValue,
+      taxableValue,
+      igst,
+      cgst,
+      sgst,
+      roundOff,
+      invoiceValue,
       financialYear,
       sequenceNumber,
       billingPeriodStart: createInvoiceDto.billingPeriodStart ? new Date(createInvoiceDto.billingPeriodStart) : null,
@@ -218,14 +243,17 @@ export class CreateInvoiceUseCase {
     }
   }
 
-  private validateBillingData(dto: CreateInvoiceDto): void {
-    switch (dto.billingOption) {
+  private validateBillingData(dto: CreateInvoiceDto, effectiveOption: BillingOption, isManual: boolean): void {
+    switch (effectiveOption) {
       case BillingOption.BED_WISE:
         if (!dto.bedCount || dto.bedCount <= 0) {
           throw new InvalidInvoiceDataException('Bed count is required and must be greater than 0 for bed-wise billing');
         }
         if (!dto.bedRate || dto.bedRate <= 0) {
           throw new InvalidInvoiceDataException('Bed rate is required and must be greater than 0 for bed-wise billing');
+        }
+        if (isManual && (!dto.billingDays || dto.billingDays < 1)) {
+          throw new InvalidInvoiceDataException('Billing days is required and must be at least 1 for bed-wise manual invoices');
         }
         break;
 
@@ -244,5 +272,14 @@ export class CreateInvoiceUseCase {
         }
         break;
     }
+  }
+
+  private billingTypeFromHcfMaster(hcfBillingType?: string | null): BillingType | null {
+    if (!hcfBillingType) return null;
+    const value = hcfBillingType.trim().toLowerCase();
+    if (value === BillingType.MONTHLY.toLowerCase()) return BillingType.MONTHLY;
+    if (value === BillingType.QUARTERLY.toLowerCase()) return BillingType.QUARTERLY;
+    if (value === BillingType.YEARLY.toLowerCase()) return BillingType.YEARLY;
+    return null;
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { BillingOption } from '../../infrastructure/transaction/invoice.entity';
+import { splitGstTaxAmount } from '../utils/invoice-gst-calculation.util';
 
 export interface BillingCalculationResult {
   taxableValue: number;
@@ -19,7 +20,9 @@ export class InvoiceCalculationService {
     billingOption: BillingOption;
     bedCount?: number | null;
     bedRate?: number | null;
-    daysInMonth?: number; // For bed-wise monthly calculation
+    /** Explicit billing days (bed-wise); takes precedence over daysInMonth. */
+    billingDays?: number | null;
+    daysInMonth?: number; // For bed-wise monthly calculation when billingDays not set
     weightInKg?: number | null;
     kgRate?: number | null;
     lumpsumAmount?: number | null;
@@ -35,8 +38,11 @@ export class InvoiceCalculationService {
         if (!params.bedCount || !params.bedRate) {
           throw new Error('Bed count and bed rate are required for bed-wise billing');
         }
-        // If daysInMonth is provided, use it; otherwise default to 30 days
-        const days = params.daysInMonth ?? 30;
+        // Prefer billingDays from invoice; else daysInMonth; else 30
+        const days =
+          params.billingDays != null && params.billingDays > 0
+            ? params.billingDays
+            : params.daysInMonth ?? 30;
         taxableValue = days * params.bedCount * params.bedRate;
         break;
 
@@ -63,15 +69,10 @@ export class InvoiceCalculationService {
 
     if (!params.isGSTExempt && taxableValue > 0) {
       const taxAmount = (taxableValue * gstRate) / 100;
-
-      if (params.isInterState) {
-        // Inter-state: IGST
-        igst = taxAmount;
-      } else {
-        // Intra-state: CGST + SGST (9% each)
-        cgst = taxAmount / 2;
-        sgst = taxAmount / 2;
-      }
+      const split = splitGstTaxAmount(taxAmount, !!params.isInterState);
+      igst = split.igst;
+      cgst = split.cgst;
+      sgst = split.sgst;
     }
 
     // Calculate total and round off
