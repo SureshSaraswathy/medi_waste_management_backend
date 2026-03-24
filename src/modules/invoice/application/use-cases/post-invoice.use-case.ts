@@ -5,6 +5,7 @@ import { InvoiceNotFoundException } from '../../domain/exceptions/invoice.except
 import { InvoiceStatus } from '../../infrastructure/transaction/invoice.entity';
 import { InvoiceNumberService } from '../services/invoice-number.service';
 import { InvoicePdfService } from '../services/invoice-pdf.service';
+import { BatchService } from '../services/batch.service';
 
 @Injectable()
 export class PostInvoiceUseCase {
@@ -13,6 +14,7 @@ export class PostInvoiceUseCase {
     private readonly invoiceRepository: IInvoiceRepository,
     private readonly invoiceNumberService: InvoiceNumberService,
     private readonly invoicePdfService: InvoicePdfService,
+    private readonly batchService: BatchService,
   ) {}
 
   async execute(invoiceId: string, invoiceDate: Date, modifiedBy?: string): Promise<Invoice> {
@@ -43,6 +45,10 @@ export class PostInvoiceUseCase {
     (invoice as any).modifiedBy = modifiedBy || null;
 
     const savedInvoice = await this.invoiceRepository.update(invoice);
+
+    if (savedInvoice.batchId) {
+      await this.batchService.reconcileBatchAfterDraftPosting(savedInvoice.batchId);
+    }
 
     // Generate PDF
     try {

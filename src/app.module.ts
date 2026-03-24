@@ -54,10 +54,12 @@ import { ComplianceRegisterModule } from './modules/compliance-register/complian
 import { NotificationModule } from './modules/notification/notification.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { HealthController } from './common/controllers/health.controller';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule,
+    ScheduleModule.forRoot(),
     QueueModule,
     
     // Master Database Connection - For reference/master data

@@ -7,29 +7,47 @@ import { InvoiceBulkDownloadService } from '../application/services/invoice-bulk
  * Public download endpoint for bulk invoice ZIPs.
  * Uses an unguessable token + expiry to avoid requiring auth in email links.
  */
-@Controller('invoice-downloads')
+@Controller()
 export class InvoiceDownloadController {
   constructor(private readonly bulkDownloadService: InvoiceBulkDownloadService) {}
 
-  @Get(':token')
+  @Get(['download/bulk/:token', 'invoice-downloads/:token'])
   async download(@Param('token') token: string, @Res() res: Response) {
-    const meta = await this.bulkDownloadService.getByToken(token);
-    if (!meta) {
+    const validation = await this.bulkDownloadService.validateToken(token);
+    if (validation.status === 'invalid') {
       return res.status(HttpStatus.NOT_FOUND).json({
         success: false,
-        message: 'Download link is invalid or expired',
+        message: 'Invalid download token',
       });
     }
+
+    if (validation.status === 'expired') {
+      return res.status(HttpStatus.GONE).json({
+        success: false,
+        message: 'Download link has expired',
+      });
+    }
+
+    if (validation.status === 'missing_file') {
+      return res.status(HttpStatus.NOT_FOUND).json({
+        success: false,
+        message: 'ZIP file is missing or already cleaned up',
+      });
+    }
+
+    const meta = validation.record;
 
     if (!fs.existsSync(meta.filePath)) {
       return res.status(HttpStatus.NOT_FOUND).json({
         success: false,
-        message: 'File not found (may have been removed)',
+        message: 'ZIP file is missing or already cleaned up',
       });
     }
 
+    await this.bulkDownloadService.incrementDownloadCount(meta.id);
+
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${meta.fileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${validation.fileName}"`);
 
     const stream = fs.createReadStream(meta.filePath);
     stream.pipe(res);

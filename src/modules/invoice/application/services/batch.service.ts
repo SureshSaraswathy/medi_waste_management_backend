@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InvoiceBatchEntity, BatchType, BatchStatus } from '../../infrastructure/transaction/invoice-batch.entity';
@@ -18,6 +18,8 @@ import { randomUUID } from 'crypto';
 
 @Injectable()
 export class BatchService {
+  private readonly logger = new Logger(BatchService.name);
+
   constructor(
     @Inject(BATCH_REPOSITORY_TOKEN)
     private readonly batchRepository: IBatchRepository,
@@ -822,6 +824,34 @@ export class BatchService {
   }
 
   /**
+   * After one or more draft invoices from a batch are posted, align batch status and totalRecords.
+   * Call from bulk draft post and from single-invoice post when invoice.batchId is set.
+   */
+  async reconcileBatchAfterDraftPosting(batchId: string): Promise<void> {
+    try {
+      const batch = await this.batchRepository.findById(batchId);
+      if (!batch) return;
+
+      const batchInvoices = await this.invoiceRepository.findByBatchId(batchId);
+      const remainingDrafts = batchInvoices.filter(inv => inv.status === InvoiceStatus.DRAFT).length;
+
+      batch.totalRecords = remainingDrafts;
+
+      if (remainingDrafts === 0) {
+        batch.status = BatchStatus.POSTED;
+        batch.postedAt = new Date();
+      } else {
+        batch.status = BatchStatus.STAGED;
+        batch.postedAt = null;
+      }
+
+      await this.batchRepository.update(batch);
+    } catch (error) {
+      this.logger.error(`Failed to reconcile batch ${batchId} after draft posting`, error);
+    }
+  }
+
+  /**
    * Post draft invoices (change status to POSTED/DUE, generate numbers, PDFs)
    */
   async postDraftInvoices(invoiceIds: string[], invoiceDate: Date, createdBy?: string): Promise<{ success: number; failed: number }> {
@@ -856,8 +886,11 @@ export class BatchService {
 
         await this.invoiceRepository.update(invoice);
 
-        // Generate PDF
-        await this.invoicePdfService.generateInvoicePdf(invoice.invoiceId, 'save');
+        // Generate PDF without blocking the HTTP response. Sequential awaited PDFs (Puppeteer)
+        // for many invoices exceed browser/proxy timeouts and surface as "Failed to fetch".
+        void this.invoicePdfService.generateInvoicePdf(invoice.invoiceId, 'save').catch((err) => {
+          this.logger.error(`Failed to generate PDF for posted draft invoice ${invoice.invoiceId}`, err);
+        });
 
         successCount++;
       } catch (error: any) {
@@ -866,32 +899,8 @@ export class BatchService {
       }
     }
 
-    // Reconcile batch status/count after posting draft invoices.
     for (const batchId of touchedBatchIds) {
-      try {
-        const batch = await this.batchRepository.findById(batchId);
-        if (!batch) continue;
-
-        const batchInvoices = await this.invoiceRepository.findByBatchId(batchId);
-        const remainingDrafts = batchInvoices.filter(inv => inv.status === InvoiceStatus.DRAFT).length;
-
-        // Keep totalRecords aligned with currently editable draft rows.
-        batch.totalRecords = remainingDrafts;
-
-        // Mark batch as posted only when all draft invoices are posted.
-        if (remainingDrafts === 0) {
-          batch.status = BatchStatus.POSTED;
-          batch.postedAt = new Date();
-        } else {
-          batch.status = BatchStatus.STAGED;
-          batch.postedAt = null;
-        }
-
-        await this.batchRepository.update(batch);
-      } catch (error) {
-        // Do not fail posting flow if reconciliation fails for one batch.
-        console.error(`Failed to reconcile batch ${batchId} after draft posting:`, error);
-      }
+      await this.reconcileBatchAfterDraftPosting(batchId);
     }
 
     return { success: successCount, failed: failedCount };

@@ -196,7 +196,10 @@ export class GenerateInvoiceWeightUseCase {
       createdBy: params.createdBy || null,
     });
 
-    // Save invoice
+    // Same lifecycle as manual post: DUE + postedAt
+    invoice.post();
+    this.invoiceLockService.checkAndLockInvoice(invoice);
+
     const savedInvoice = await this.invoiceRepository.create(invoice);
     return savedInvoice;
   }

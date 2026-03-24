@@ -270,10 +270,9 @@ export class GenerateInvoiceAutoUseCase {
       createdBy: params.createdBy || null,
     });
 
-    // Auto-generate (set status to Generated)
-    invoice.generate();
+    // Same lifecycle as manual post: DUE + postedAt (not POSTED via generate())
+    invoice.post();
 
-    // Check and lock if needed
     this.invoiceLockService.checkAndLockInvoice(invoice);
 
     // Save invoice

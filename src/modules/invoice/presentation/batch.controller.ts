@@ -107,6 +107,9 @@ export class BatchController {
       if (!body.invoiceDate) {
         throw new BadRequestException('invoiceDate is required');
       }
+      if (!Array.isArray(body.invoiceIds) || body.invoiceIds.length === 0) {
+        throw new BadRequestException('invoiceIds must be a non-empty array');
+      }
 
       const invoiceDate = new Date(body.invoiceDate);
       if (isNaN(invoiceDate.getTime())) {

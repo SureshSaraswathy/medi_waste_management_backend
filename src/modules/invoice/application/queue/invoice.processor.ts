@@ -87,7 +87,7 @@ export class InvoiceProcessor extends WorkerHost {
       process.env.APP_PUBLIC_URL ||
       `http://localhost:${process.env.PORT || '3000'}`;
 
-    const downloadUrl = `${baseUrl}/api/v1/invoice-downloads/${meta.token}`;
+    const downloadUrl = `${baseUrl}/api/v1/download/bulk/${meta.token}`;
 
     await job.updateProgress(95);
 

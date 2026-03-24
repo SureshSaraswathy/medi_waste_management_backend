@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { InvoiceEntity } from './infrastructure/transaction/invoice.entity';
 import { InvoiceBatchEntity } from './infrastructure/transaction/invoice-batch.entity';
 import { InvoiceBatchItemEntity } from './infrastructure/transaction/invoice-batch-item.entity';
+import { BulkDownloadEntity } from './infrastructure/transaction/bulk-download.entity';
 import { InvoiceRepository } from './infrastructure/persistence/invoice.repository';
 import { BatchRepository } from './infrastructure/persistence/batch.repository';
 import { InvoiceController } from './presentation/invoice.controller';
@@ -23,6 +24,7 @@ import { InvoiceLockService } from './application/services/invoice-lock.service'
 import { InvoicePdfService } from './application/services/invoice-pdf.service';
 import { InvoiceQueueService } from './application/services/invoice-queue.service';
 import { InvoiceBulkDownloadService } from './application/services/invoice-bulk-download.service';
+import { BulkDownloadCleanupService } from './application/services/bulk-download-cleanup.service';
 import { INVOICE_REPOSITORY_TOKEN } from './domain/interfaces/invoice.repository.interface';
 import { BATCH_REPOSITORY_TOKEN } from './domain/interfaces/batch.repository.interface';
 import { BatchService } from './application/services/batch.service';
@@ -39,6 +41,7 @@ import { InvoiceDownloadController } from './presentation/invoice-download.contr
     TypeOrmModule.forFeature([InvoiceEntity], 'transaction'),
     TypeOrmModule.forFeature([InvoiceBatchEntity], 'transaction'),
     TypeOrmModule.forFeature([InvoiceBatchItemEntity], 'transaction'),
+    TypeOrmModule.forFeature([BulkDownloadEntity], 'transaction'),
     TypeOrmModule.forFeature([CompanyEntity], 'master'),
     TypeOrmModule.forFeature([HcfEntity], 'master'),
     HcfModule,
@@ -73,6 +76,7 @@ import { InvoiceDownloadController } from './presentation/invoice-download.contr
     InvoicePdfService,
     InvoiceQueueService,
     InvoiceBulkDownloadService,
+    BulkDownloadCleanupService,
   ],
   exports: [
     INVOICE_REPOSITORY_TOKEN,

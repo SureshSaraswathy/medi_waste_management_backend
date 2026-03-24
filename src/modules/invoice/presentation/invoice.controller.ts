@@ -39,7 +39,9 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuditLogInterceptor } from '../../user/presentation/interceptors/audit-log.interceptor';
 import { InvoicePdfService } from '../application/services/invoice-pdf.service';
 import { InvoiceQueueService } from '../application/services/invoice-queue.service';
+import { InvoiceBulkDownloadService } from '../application/services/invoice-bulk-download.service';
 import { Invoice } from '../domain/entities/invoice.domain.entity';
+import { BulkDownloadStatus } from '../infrastructure/transaction/bulk-download.entity';
 
 @Controller('invoices')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -57,6 +59,7 @@ export class InvoiceController {
     private readonly postInvoiceUseCase: PostInvoiceUseCase,
     private readonly invoicePdfService: InvoicePdfService,
     private readonly invoiceQueueService: InvoiceQueueService,
+    private readonly invoiceBulkDownloadService: InvoiceBulkDownloadService,
   ) {}
 
   @Post()
@@ -310,6 +313,28 @@ export class InvoiceController {
       success: true,
       data: { jobId },
       message: 'Processing started',
+    };
+  }
+
+  @Get('pdf/bulk-downloads')
+  @RequirePermissions('INVOICE_VIEW')
+  async getBulkDownloadHistory(
+    @Query('status') status?: BulkDownloadStatus,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const normalizedStatus =
+      status && Object.values(BulkDownloadStatus).includes(status) ? status : undefined;
+
+    const data = await this.invoiceBulkDownloadService.listBulkDownloads({
+      status: normalizedStatus,
+      page: page ? parseInt(page, 10) : undefined,
+      pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
+    });
+
+    return {
+      success: true,
+      data,
     };
   }
 

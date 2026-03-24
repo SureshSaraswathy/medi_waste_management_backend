@@ -328,6 +328,10 @@ export class GenerateInvoiceMonthUseCase {
       createdBy: params.createdBy,
     });
 
+    // Same lifecycle as manual post: DUE + postedAt (not DRAFT / POSTED)
+    newInvoice.post();
+    this.invoiceLockService.checkAndLockInvoice(newInvoice);
+
     return await this.invoiceRepository.create(newInvoice);
   }
 
