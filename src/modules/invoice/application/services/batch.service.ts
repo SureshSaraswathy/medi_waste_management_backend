@@ -12,6 +12,7 @@ import { BatchResponseDto, BatchItemResponseDto, BatchPreviewResponseDto } from 
 import { InvoiceCalculationService } from './invoice-calculation.service';
 import { InvoiceNumberService } from './invoice-number.service';
 import { InvoicePdfService } from './invoice-pdf.service';
+import { billingOptionFromHcfMaster } from '../utils/invoice-gst-calculation.util';
 import { Invoice } from '../../domain/entities/invoice.domain.entity';
 import { BillingOption, InvoiceGenerationType, BillingType, InvoiceStatus } from '../../infrastructure/transaction/invoice.entity';
 import { randomUUID } from 'crypto';
@@ -255,28 +256,27 @@ export class BatchService {
     const dueDate = new Date(billingPeriodEnd);
     dueDate.setDate(dueDate.getDate() + 30);
 
-    // Get all active HCFs with AutoGeneration enabled and Bed-wise or Lumpsum billing configured
+    // Get all active HCFs with AutoGeneration enabled and bed/lumpsum billing configured
+    // HCF master stores "Per Bed" / "Per Kg" / "Lumpsum" — map via billingOptionFromHcfMaster
     const allHcfs = await this.hcfRepository.findByCompany(dto.companyId);
     const activeHcfs = allHcfs.filter(hcf => {
       if (hcf.status !== 'Active' || hcf.isDeleted || !hcf.autoGen) return false;
-      
-      // Check if HCF has Bed-wise billing configured
-      if (hcf.billingOption === 'Bed-wise' && hcf.bedCount && hcf.bedRate) {
-        const bedCount = parseInt(hcf.bedCount);
+
+      const mapped = billingOptionFromHcfMaster(hcf.billingOption);
+      if (mapped === BillingOption.BED_WISE && hcf.bedCount && hcf.bedRate) {
+        const bedCount = parseInt(hcf.bedCount, 10);
         const bedRate = parseFloat(hcf.bedRate);
         if (!isNaN(bedCount) && bedCount > 0 && !isNaN(bedRate) && bedRate > 0) {
           return true;
         }
       }
-      
-      // Check if HCF has Lumpsum billing configured
-      if (hcf.billingOption === 'Lumpsum' && hcf.lumpsum) {
+      if (mapped === BillingOption.LUMPSUM && hcf.lumpsum) {
         const lumpsum = parseFloat(hcf.lumpsum);
         if (!isNaN(lumpsum) && lumpsum > 0) {
           return true;
         }
       }
-      
+
       return false;
     });
 
@@ -314,8 +314,9 @@ export class BatchService {
         let amount = 0;
         let description = '';
 
-        if (hcf.billingOption === 'Bed-wise' && hcf.bedCount && hcf.bedRate) {
-          quantity = parseInt(hcf.bedCount);
+        const mappedOpt = billingOptionFromHcfMaster(hcf.billingOption);
+        if (mappedOpt === BillingOption.BED_WISE && hcf.bedCount && hcf.bedRate) {
+          quantity = parseInt(hcf.bedCount, 10);
           rate = parseFloat(hcf.bedRate);
           const calculationResult = this.invoiceCalculationService.calculateInvoiceAmounts({
             billingOption: BillingOption.BED_WISE,
@@ -326,7 +327,7 @@ export class BatchService {
           });
           amount = calculationResult.invoiceValue;
           description = `Bed-wise billing for ${dto.billingMonth}. Bed count: ${quantity}, Rate: ₹${rate}`;
-        } else if (hcf.billingOption === 'Lumpsum' && hcf.lumpsum) {
+        } else if (mappedOpt === BillingOption.LUMPSUM && hcf.lumpsum) {
           quantity = 1;
           rate = parseFloat(hcf.lumpsum);
           const calculationResult = this.invoiceCalculationService.calculateInvoiceAmounts({
@@ -437,7 +438,11 @@ export class BatchService {
   /**
    * Post batch - convert batch items to invoices
    */
-  async postBatch(batchId: string, invoiceDate: Date, createdBy?: string): Promise<{ success: number; failed: number }> {
+  async postBatch(
+    batchId: string,
+    invoiceDate: Date,
+    createdBy?: string,
+  ): Promise<{ success: number; failed: number; invoiceIds: string[] }> {
     const batch = await this.batchRepository.findById(batchId);
     if (!batch) {
       throw new NotFoundException(`Batch with ID ${batchId} not found`);
@@ -456,11 +461,13 @@ export class BatchService {
 
     let successCount = 0;
     let failedCount = 0;
+    const invoiceIds: string[] = [];
 
     try {
       for (const item of selectedItems) {
         try {
-          await this.createInvoiceFromBatchItem(batch, item, invoiceDate, createdBy);
+          const saved = await this.createInvoiceFromBatchItem(batch, item, invoiceDate, createdBy);
+          invoiceIds.push(saved.invoiceId);
           successCount++;
         } catch (error: any) {
           failedCount++;
@@ -482,7 +489,7 @@ export class BatchService {
       throw error;
     }
 
-    return { success: successCount, failed: failedCount };
+    return { success: successCount, failed: failedCount, invoiceIds };
   }
 
   /**
@@ -612,21 +619,24 @@ export class BatchService {
     dueDate.setDate(dueDate.getDate() + 30);
 
     const allHcfs = await this.hcfRepository.findByCompany(dto.companyId);
-    // Filter HCFs: Active, not deleted, autoGen enabled, and Bed-wise or Lumpsum billing option with rates configured
+    // Filter HCFs: Active, not deleted, autoGen enabled, bed/lumpsum with rates (HCF uses Per Bed / Lumpsum labels)
     const activeHcfs = allHcfs.filter(hcf => {
       if (hcf.status !== 'Active' || hcf.isDeleted || !hcf.autoGen) return false;
-      
-      // Check if HCF has Bed-wise billing configured
-      if (hcf.billingOption === 'Bed-wise' && hcf.bedCount && hcf.bedRate && 
-          parseInt(hcf.bedCount) > 0 && parseFloat(hcf.bedRate) > 0) {
+
+      const mapped = billingOptionFromHcfMaster(hcf.billingOption);
+      if (
+        mapped === BillingOption.BED_WISE &&
+        hcf.bedCount &&
+        hcf.bedRate &&
+        parseInt(hcf.bedCount, 10) > 0 &&
+        parseFloat(hcf.bedRate) > 0
+      ) {
         return true;
       }
-      
-      // Check if HCF has Lumpsum billing configured
-      if (hcf.billingOption === 'Lumpsum' && hcf.lumpsum && parseFloat(hcf.lumpsum) > 0) {
+      if (mapped === BillingOption.LUMPSUM && hcf.lumpsum && parseFloat(hcf.lumpsum) > 0) {
         return true;
       }
-      
+
       return false;
     });
 
@@ -654,13 +664,14 @@ export class BatchService {
         let kgRate: number | null = null;
         let lumpsumAmount: number | null = null;
 
-        if (hcf.billingOption === 'Bed-wise' && hcf.bedCount && hcf.bedRate) {
-          quantity = parseInt(hcf.bedCount);
+        const mappedOpt = billingOptionFromHcfMaster(hcf.billingOption);
+        if (mappedOpt === BillingOption.BED_WISE && hcf.bedCount && hcf.bedRate) {
+          quantity = parseInt(hcf.bedCount, 10);
           rate = parseFloat(hcf.bedRate);
           billingOption = BillingOption.BED_WISE;
           bedCount = quantity;
           bedRate = rate;
-        } else if (hcf.billingOption === 'Lumpsum' && hcf.lumpsum) {
+        } else if (mappedOpt === BillingOption.LUMPSUM && hcf.lumpsum) {
           quantity = 1;
           rate = parseFloat(hcf.lumpsum);
           billingOption = BillingOption.LUMPSUM;
@@ -854,9 +865,14 @@ export class BatchService {
   /**
    * Post draft invoices (change status to POSTED/DUE, generate numbers, PDFs)
    */
-  async postDraftInvoices(invoiceIds: string[], invoiceDate: Date, createdBy?: string): Promise<{ success: number; failed: number }> {
+  async postDraftInvoices(
+    invoiceIds: string[],
+    invoiceDate: Date,
+    createdBy?: string,
+  ): Promise<{ success: number; failed: number; invoiceIds: string[] }> {
     let successCount = 0;
     let failedCount = 0;
+    const postedInvoiceIds: string[] = [];
     const touchedBatchIds = new Set<string>();
 
     for (const invoiceId of invoiceIds) {
@@ -886,6 +902,8 @@ export class BatchService {
 
         await this.invoiceRepository.update(invoice);
 
+        postedInvoiceIds.push(invoice.invoiceId);
+
         // Generate PDF without blocking the HTTP response. Sequential awaited PDFs (Puppeteer)
         // for many invoices exceed browser/proxy timeouts and surface as "Failed to fetch".
         void this.invoicePdfService.generateInvoicePdf(invoice.invoiceId, 'save').catch((err) => {
@@ -903,7 +921,7 @@ export class BatchService {
       await this.reconcileBatchAfterDraftPosting(batchId);
     }
 
-    return { success: successCount, failed: failedCount };
+    return { success: successCount, failed: failedCount, invoiceIds: postedInvoiceIds };
   }
 
   /**
@@ -933,7 +951,8 @@ export class BatchService {
       weightInKg = item.quantity;
       kgRate = item.rate;
     } else if (batch.type === BatchType.BED) {
-      if (hcf.billingOption === 'Bed-wise') {
+      const mapped = billingOptionFromHcfMaster(hcf.billingOption);
+      if (mapped === BillingOption.BED_WISE) {
         billingOption = BillingOption.BED_WISE;
         bedCount = item.quantity;
         bedRate = item.rate;

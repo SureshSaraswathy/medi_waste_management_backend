@@ -76,6 +76,14 @@ export class PaymentRepository implements IPaymentRepository {
     return entity ? this.toDomain(entity) : null;
   }
 
+  async findAll(): Promise<Payment[]> {
+    const entities = await this.repository.find({
+      where: { isDeleted: false },
+      order: { paymentDate: 'DESC' },
+    });
+    return entities.map(e => this.toDomain(e));
+  }
+
   async findByCompany(companyId: string): Promise<Payment[]> {
     const entities = await this.repository.find({
       where: { companyId, isDeleted: false },

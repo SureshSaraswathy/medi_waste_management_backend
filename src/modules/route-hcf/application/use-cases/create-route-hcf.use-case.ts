@@ -2,7 +2,11 @@ import { Injectable, Inject } from '@nestjs/common';
 import { IRouteHcfRepository, ROUTE_HCF_REPOSITORY_TOKEN } from '../../domain/interfaces/route-hcf.repository.interface';
 import { RouteHcf } from '../../domain/entities/route-hcf.domain.entity';
 import { CreateRouteHcfDto } from '../dto/create-route-hcf.dto';
-import { DuplicateRouteHcfMappingException } from '../../domain/exceptions/route-hcf.exceptions';
+import {
+  DuplicateRouteHcfMappingException,
+  HcfAlreadyMappedToAnotherRouteException,
+} from '../../domain/exceptions/route-hcf.exceptions';
+import { MasterStatus } from '../../../../common/base/master-data.base.entity';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -22,6 +26,12 @@ export class CreateRouteHcfUseCase {
         createRouteHcfDto.routeId,
         createRouteHcfDto.hcfId,
       );
+    }
+
+    const mappingsForHcf = await this.routeHcfRepository.findByHcf(createRouteHcfDto.hcfId);
+    const activeOnAnyRoute = mappingsForHcf.find((m) => m.status === MasterStatus.ACTIVE);
+    if (activeOnAnyRoute) {
+      throw new HcfAlreadyMappedToAnotherRouteException();
     }
 
     const routeHcf = RouteHcf.create({

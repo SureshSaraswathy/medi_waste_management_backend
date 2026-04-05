@@ -34,8 +34,8 @@ export class ShredderRegisterEntity {
   @Column({ type: 'varchar', length: 100, name: 'waste_category' })
   wasteCategory: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'waste_qty_kg' })
-  wasteQtyKg: number;
+  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'waste_qty_kg', nullable: true })
+  wasteQtyKg: number | null;
 
   @Column({ type: 'time', name: 'start_time' })
   startTime: string;
@@ -43,11 +43,11 @@ export class ShredderRegisterEntity {
   @Column({ type: 'time', name: 'end_time' })
   endTime: string;
 
-  @Column({ type: 'decimal', precision: 8, scale: 2, name: 'temperature_c' })
-  temperatureC: number;
+  @Column({ type: 'decimal', precision: 8, scale: 2, name: 'temperature_c', nullable: true })
+  temperatureC: number | null;
 
-  @Column({ type: 'decimal', precision: 8, scale: 2, name: 'pressure_bar' })
-  pressureBar: number;
+  @Column({ type: 'decimal', precision: 8, scale: 2, name: 'pressure_bar', nullable: true })
+  pressureBar: number | null;
 
   @Column({ type: 'integer', name: 'cycle_time_min' })
   cycleTimeMin: number;

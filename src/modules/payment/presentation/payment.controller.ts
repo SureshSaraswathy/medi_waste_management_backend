@@ -179,11 +179,9 @@ export class PaymentController {
     @Query('paymentDateFrom') paymentDateFrom?: string,
     @Query('paymentDateTo') paymentDateTo?: string,
   ) {
-    let payments: Payment[] = [];
-
-    if (companyId) {
-      payments = await this.paymentRepository.findByCompany(companyId);
-    }
+    let payments: Payment[] = companyId
+      ? await this.paymentRepository.findByCompany(companyId)
+      : await this.paymentRepository.findAll();
 
     // Filter by status
     if (status) {

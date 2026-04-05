@@ -294,7 +294,7 @@ export class InvoiceController {
   @Post('pdf/bulk')
   @RequirePermissions('INVOICE_VIEW')
   async createBulkPdfJob(@Body() body: BulkInvoicePdfJobDto) {
-    const max = parseInt(process.env.MAX_BULK_PDF || '100', 10);
+    const max = parseInt(process.env.MAX_BULK_PDF || '25', 10);
 
     if (!body.invoiceIds || body.invoiceIds.length === 0) {
       throw new BadRequestException('invoiceIds array is required');

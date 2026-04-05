@@ -11,6 +11,7 @@ export const RECEIPT_INVOICE_MAPPING_REPOSITORY_TOKEN = 'RECEIPT_INVOICE_MAPPING
 export interface IPaymentRepository {
   create(payment: Payment): Promise<Payment>;
   findById(paymentId: string): Promise<Payment | null>;
+  findAll(): Promise<Payment[]>;
   findByCompany(companyId: string): Promise<Payment[]>;
   findByReceipt(receiptId: string): Promise<Payment | null>;
   findWithoutReceipt(companyId?: string): Promise<Payment[]>; // Find payments that don't have receipts yet

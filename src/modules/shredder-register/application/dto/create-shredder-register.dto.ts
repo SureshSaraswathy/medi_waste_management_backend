@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsDateString, IsNumber, IsEnum, IsOptional, IsNotEmpty, Min } from 'class-validator';
+import { IsString, IsUUID, IsDateString, IsNumber, IsEnum, IsOptional, IsNotEmpty, Min, ValidateIf } from 'class-validator';
 
 export class CreateShredderRegisterDto {
   @IsUUID()
@@ -21,9 +21,11 @@ export class CreateShredderRegisterDto {
   @IsNotEmpty()
   wasteCategory: string;
 
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsNumber()
   @Min(0)
-  wasteQtyKg: number;
+  wasteQtyKg?: number | null;
 
   @IsString()
   @IsNotEmpty()
@@ -33,13 +35,17 @@ export class CreateShredderRegisterDto {
   @IsNotEmpty()
   endTime: string;
 
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsNumber()
   @Min(0)
-  temperatureC: number;
+  temperatureC?: number | null;
 
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsNumber()
   @Min(0)
-  pressureBar: number;
+  pressureBar?: number | null;
 
   @IsNumber()
   @Min(0)

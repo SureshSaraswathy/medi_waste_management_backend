@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsNumber, IsEnum, IsOptional, Min } from 'class-validator';
+import { IsString, IsDateString, IsNumber, IsEnum, IsOptional, Min, ValidateIf } from 'class-validator';
 
 export class UpdateShredderRegisterDto {
   @IsDateString()
@@ -17,10 +17,11 @@ export class UpdateShredderRegisterDto {
   @IsOptional()
   wasteCategory?: string;
 
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsNumber()
   @Min(0)
-  @IsOptional()
-  wasteQtyKg?: number;
+  wasteQtyKg?: number | null;
 
   @IsString()
   @IsOptional()
@@ -30,15 +31,17 @@ export class UpdateShredderRegisterDto {
   @IsOptional()
   endTime?: string;
 
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsNumber()
   @Min(0)
-  @IsOptional()
-  temperatureC?: number;
+  temperatureC?: number | null;
 
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsNumber()
   @Min(0)
-  @IsOptional()
-  pressureBar?: number;
+  pressureBar?: number | null;
 
   @IsNumber()
   @Min(0)
