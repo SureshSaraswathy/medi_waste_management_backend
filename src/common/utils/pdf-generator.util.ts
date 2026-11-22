@@ -28,7 +28,7 @@ export class PdfGeneratorUtil {
    */
   static async getBrowser(): Promise<Browser> {
     // If browser exists and is connected, return it
-    if (this.browserInstance && this.browserInstance.isConnected()) {
+    if (this.browserInstance && this.browserInstance.connected) {
       this.lastUsedTime = Date.now();
       return this.browserInstance;
     }
@@ -40,7 +40,7 @@ export class PdfGeneratorUtil {
 
     // Launch new browser
     this.browserPromise = require('puppeteer').launch({
-      headless: 'new',
+      headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 
@@ -95,7 +95,8 @@ export class PdfGeneratorUtil {
       // Use shared browser instance
       const browser = await this.getBrowser();
       page = await browser.newPage();
-      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      await page.setContent(htmlContent, { waitUntil: 'load' });
+      await page.waitForNetworkIdle({ idleTime: 500, timeout: 30000 });
 
       const marginObj = this.parseMargin(options.margin);
 
