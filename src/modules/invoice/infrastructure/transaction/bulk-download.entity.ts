@@ -34,5 +34,11 @@ export class BulkDownloadEntity {
 
   @Column({ type: 'varchar', length: 30, default: BulkDownloadStatus.ACTIVE })
   status: BulkDownloadStatus;
+
+  // Customer that owns this ZIP. Used to re-check the customer's entitlement when the download link is used.
+  // Null for links created before this column existed (they keep working until their normal expiry).
+  // Must match migrations/entitlements_005_bulk_download_company.sql (transaction database).
+  @Column({ type: 'uuid', name: 'company_id', nullable: true })
+  companyId?: string | null;
 }
 

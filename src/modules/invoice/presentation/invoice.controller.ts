@@ -1,3 +1,4 @@
+import { EntitlementService } from '../../entitlement/application/entitlement.service';
 import {
   Controller,
   Get,
@@ -60,6 +61,7 @@ export class InvoiceController {
     private readonly invoicePdfService: InvoicePdfService,
     private readonly invoiceQueueService: InvoiceQueueService,
     private readonly invoiceBulkDownloadService: InvoiceBulkDownloadService,
+    private readonly entitlements: EntitlementService,
   ) {}
 
   @Post()
@@ -322,6 +324,7 @@ export class InvoiceController {
     @Query('status') status?: BulkDownloadStatus,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Request() req?: any,
   ) {
     const normalizedStatus =
       status && Object.values(BulkDownloadStatus).includes(status) ? status : undefined;
@@ -330,6 +333,10 @@ export class InvoiceController {
       status: normalizedStatus,
       page: page ? parseInt(page, 10) : undefined,
       pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
+      // always limited to the caller's customer (not mode dependent): the history lists download tokens, so it must never
+      // include another customer's links. Legacy rows without an owner are therefore hidden from customers; platform
+      // administrators still see everything. Nothing is deleted.
+      companyId: this.entitlements.customerScope(req?.user),
     });
 
     return {

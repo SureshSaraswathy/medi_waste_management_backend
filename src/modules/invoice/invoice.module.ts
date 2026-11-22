@@ -30,6 +30,7 @@ import { BATCH_REPOSITORY_TOKEN } from './domain/interfaces/batch.repository.int
 import { BatchService } from './application/services/batch.service';
 import { HcfModule } from '../hcf/hcf.module';
 import { CompanyModule } from '../company/company.module';
+import { EntitlementModule } from '../entitlement/entitlement.module';
 import { CompanyEntity } from '../company/infrastructure/persistence/company.entity';
 import { HcfEntity } from '../hcf/infrastructure/persistence/hcf.entity';
 import { WasteTransactionModule } from '../waste-transaction/waste-transaction.module';
@@ -48,6 +49,7 @@ import { InvoiceDownloadController } from './presentation/invoice-download.contr
     CompanyModule,
     WasteTransactionModule,
     NotificationModule,
+    EntitlementModule,
   ],
   controllers: [InvoiceController, InvoiceDownloadController, BatchController],
   providers: [

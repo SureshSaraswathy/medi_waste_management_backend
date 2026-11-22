@@ -25,6 +25,7 @@ import { HcfModule } from './modules/hcf/hcf.module';
 import { HCFAuthModule } from './modules/hcf-auth/hcf-auth.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ExportModule } from './modules/export/export.module';
+import { EntitlementModule } from './modules/entitlement/entitlement.module';
 import { TrainingCertificateModule } from './modules/training-certificate/training-certificate.module';
 import { ContractModule } from './modules/contract/contract.module';
 import { AgreementModule } from './modules/agreement/agreement.module';
@@ -105,6 +106,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     UserModule,
     AuthModule,
     CompanyModule,
+    EntitlementModule,
     RoleModule,
     PermissionModule,
     StateModule,

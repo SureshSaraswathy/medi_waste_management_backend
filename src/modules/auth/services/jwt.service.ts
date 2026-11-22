@@ -10,6 +10,8 @@ export interface JwtPayload {
   email?: string;
   permissions?: string[];
   userType?: 'USER' | 'HCF'; // NEW: Distinguish user type
+  /** Signed login channel (Customer Entitlements): the mobile app and the HCF portal are licensed separately. */
+  channel?: 'DESKTOP' | 'MOBILE' | 'HCF_PORTAL';
   hcfId?: string; // NEW: If HCF user
 }
 

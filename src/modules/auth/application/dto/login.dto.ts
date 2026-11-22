@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, IsOptional, IsIn } from 'class-validator';
 
 export class LoginDto {
   @IsString()
@@ -9,4 +9,9 @@ export class LoginDto {
   @IsNotEmpty({ message: 'Password is required' })
   @MinLength(1, { message: 'Password cannot be empty' })
   password: string;
+
+  /** Optional: 'mobile' when the mobile app signs in. Becomes a signed claim in the token. */
+  @IsOptional()
+  @IsIn(['mobile', 'desktop'])
+  channel?: 'mobile' | 'desktop';
 }

@@ -41,6 +41,7 @@ export class InvoiceProcessor extends WorkerHost {
 
     const zipFiles: ZipFileEntry[] = [];
     const manifestData: ZipManifestEntry[] = [];
+    const ownerCompanies = new Set<string>(); // customer(s) the invoices belong to
 
     for (let i = 0; i < invoiceIds.length; i++) {
       const invoiceId = invoiceIds[i];
@@ -51,6 +52,7 @@ export class InvoiceProcessor extends WorkerHost {
         throw new Error(`Invoice not found: ${invoiceId}`);
       }
 
+      if (invoice.companyId) ownerCompanies.add(invoice.companyId);
       const pdfBuffer = (await this.invoicePdfService.generateInvoicePdf(invoiceId)) as Buffer;
       const fileName = `${invoice.invoiceNumber}.pdf`;
 
@@ -81,6 +83,8 @@ export class InvoiceProcessor extends WorkerHost {
       email,
       buffer: zipBuffer,
       fileName: `invoices-${job.id}.zip`,
+      // the link is re-checked against this customer's entitlement when it is used (null if mixed or unknown)
+      companyId: ownerCompanies.size === 1 ? [...ownerCompanies][0] : null,
     });
 
     const baseUrl =

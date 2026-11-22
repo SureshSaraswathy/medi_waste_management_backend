@@ -57,4 +57,9 @@ export class ComplianceRegisterEntity {
 
   @Column({ type: 'boolean', default: false, name: 'is_deleted' })
   isDeleted: boolean;
+
+  // Owning customer (Customer Entitlements, tenant isolation). Null = not attributed yet (legacy rows).
+  // Must match migrations/entitlements_006_compliance_register_company.sql (transaction database).
+  @Column({ type: 'uuid', name: 'company_id', nullable: true })
+  companyId?: string | null;
 }

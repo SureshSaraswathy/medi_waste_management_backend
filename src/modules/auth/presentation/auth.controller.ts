@@ -1,4 +1,5 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException, NotFoundException, Get, UseGuards, Request, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException, NotFoundException, Get, UseGuards, Request, BadRequestException, Optional, Inject } from '@nestjs/common';
+import { CHANNEL_LOGIN_POLICY, ChannelLoginPolicy } from '../application/channel-login-policy';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -33,6 +34,8 @@ export class AuthController {
     private readonly permissionService: PermissionService,
     @InjectDataSource('master')
     private readonly dataSource: DataSource,
+    @Optional() @Inject(CHANNEL_LOGIN_POLICY)
+    private readonly channelPolicy?: ChannelLoginPolicy,
   ) {
     const appConfig = this.configService.get('app');
     this.superAdminConfig = appConfig?.superAdmin || {
@@ -51,6 +54,7 @@ export class AuthController {
       const result = await this.loginUseCase.execute(
         loginDto.usernameOrEmail,
         loginDto.password,
+        loginDto.channel,
       );
 
       return {
@@ -201,6 +205,7 @@ export class AuthController {
           email: this.superAdminConfig.email,
           companyId: '00000000-0000-0000-0000-000000000000',
           userRoleId: null,
+          channel: verifyOtpDto.channel === 'mobile' ? 'MOBILE' : 'DESKTOP',
         });
 
         // Return super admin user data
@@ -284,6 +289,11 @@ export class AuthController {
         user.userName,
       );
 
+      // second stage of a mobile login: refuse again if the Mobile App was disabled meanwhile (platform admins exempt)
+      if (verifyOtpDto.channel === 'mobile' && this.channelPolicy && !(Array.isArray(permissions) && permissions.includes('*'))) {
+        await this.channelPolicy.assertChannelAllowed(user.companyId, 'MOBILE_APP', { userId: user.userId, route: '/auth/verify-otp' });
+      }
+
       // Generate JWT token
       const token = await this.jwtService.generateToken({
         userId: user.userId,
@@ -292,6 +302,7 @@ export class AuthController {
         companyId: user.companyId,
         userRoleId: user.userRoleId || null,
         permissions,
+        channel: verifyOtpDto.channel === 'mobile' ? 'MOBILE' : 'DESKTOP',
       });
 
       const result: LoginResponse = {

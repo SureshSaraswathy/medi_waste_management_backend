@@ -29,7 +29,7 @@ export class ComplianceRegisterService {
     return compliance;
   }
 
-  async create(createDto: CreateComplianceRegisterDto, userId?: string): Promise<ComplianceRegisterEntity> {
+  async create(createDto: CreateComplianceRegisterDto, userId?: string, companyId?: string | null): Promise<ComplianceRegisterEntity> {
     const complianceData: Partial<ComplianceRegisterEntity> = {
       id: uuidv4(),
       complianceName: createDto.complianceName,
@@ -43,6 +43,7 @@ export class ComplianceRegisterService {
       documentUrl: createDto.documentUrl || null,
       remarks: createDto.remarks || null,
       createdBy: userId || null,
+      companyId: companyId || null,
     };
 
     return this.repository.create(complianceData);

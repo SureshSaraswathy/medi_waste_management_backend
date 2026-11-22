@@ -5,6 +5,7 @@ import { constants as fsConstants } from 'fs';
 import * as path from 'path';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
+import { readZipManifest } from '../../../../common/utils/zip-manifest-reader.util';
 import {
   BulkDownloadEntity,
   BulkDownloadStatus,
@@ -40,6 +41,14 @@ export type BulkTokenValidationResult =
       fileName: string;
     };
 
+/** Result of resolveOwner(). */
+export interface BulkOwner {
+  established: boolean;
+  companyId: string | null;
+  source: 'RECORDED' | 'MANIFEST' | 'NONE';
+  reason?: string;
+}
+
 @Injectable()
 export class InvoiceBulkDownloadService {
   private readonly logger = new Logger(InvoiceBulkDownloadService.name);
@@ -50,6 +59,46 @@ export class InvoiceBulkDownloadService {
     @InjectRepository(BulkDownloadEntity, 'transaction')
     private readonly bulkDownloadRepository: Repository<BulkDownloadEntity>,
   ) {}
+
+  /** Owners derived from legacy ZIP manifests (the file never changes, so the answer is stable). */
+  private readonly derivedOwners = new Map<string, { at: number; value: BulkOwner }>();
+
+  /**
+   * Who owns this download? Recorded owner first. For legacy rows without an owner it is established ONLY when the
+   * manifest inside the ZIP lists invoices that all exist and all belong to exactly one company. Anything else (no
+   * manifest, unknown invoice, invoices of several companies, unreadable file) is "not established": callers must deny.
+   * Nothing is written: records and files stay exactly as they are.
+   */
+  async resolveOwner(record: Pick<BulkDownloadEntity, 'id' | 'companyId' | 'filePath'>): Promise<BulkOwner> {
+    if (record.companyId) return { established: true, companyId: record.companyId, source: 'RECORDED' };
+    const hit = this.derivedOwners.get(record.id);
+    if (hit && Date.now() - hit.at < 10 * 60_000) return hit.value;
+    const value = await this.deriveOwner(record.filePath);
+    if (this.derivedOwners.size > 500) this.derivedOwners.clear();
+    this.derivedOwners.set(record.id, { at: Date.now(), value });
+    return value;
+  }
+
+  private async deriveOwner(filePath: string): Promise<BulkOwner> {
+    const no = (reason: string): BulkOwner => ({ established: false, companyId: null, source: 'NONE', reason });
+    const manifest = await readZipManifest(filePath);
+    const ids = manifest && Array.isArray(manifest.files) ? manifest.files.map((f) => f && f.invoiceId).filter(Boolean) as string[] : [];
+    if (!manifest || ids.length === 0) return no('no readable manifest');
+    const unique = [...new Set(ids)];
+    try {
+      const rows: Array<{ company_id: string | null }> = await this.bulkDownloadRepository.manager.query(
+        'SELECT DISTINCT invoice_id, company_id FROM invoices WHERE invoice_id = ANY($1::uuid[])',
+        [unique],
+      );
+      if (rows.length !== unique.length) return no('manifest lists invoices that no longer exist');
+      const companies = [...new Set(rows.map((r) => r.company_id))];
+      if (companies.length !== 1 || !companies[0]) return no('invoices belong to several companies or to none');
+      return { established: true, companyId: companies[0], source: 'MANIFEST' };
+    } catch (err: any) {
+      this.logger.warn(`owner lookup failed: ${err?.message}`);
+      return no('owner lookup failed');
+    }
+  }
 
   private buildUniqueFileName(jobId: string): string {
     return `job-${jobId}_${Date.now()}.zip`;
@@ -69,6 +118,7 @@ export class InvoiceBulkDownloadService {
     email: string;
     buffer: Buffer;
     fileName?: string;
+    companyId?: string | null;
   }): Promise<BulkZipMetadata> {
     const token = randomUUID();
     const createdAt = new Date();
@@ -92,6 +142,7 @@ export class InvoiceBulkDownloadService {
       expireAt: expiresAt,
       downloadCount: 0,
       status: BulkDownloadStatus.ACTIVE,
+      companyId: params.companyId ?? null,
     });
 
     await this.bulkDownloadRepository.save(record);
@@ -200,6 +251,8 @@ export class InvoiceBulkDownloadService {
     status?: BulkDownloadStatus;
     page?: number;
     pageSize?: number;
+    /** limit to one customer's downloads (a download token is a credential: never list another customer's) */
+    companyId?: string;
   }): Promise<{ items: BulkDownloadListItem[]; total: number; page: number; pageSize: number }> {
     const page = Math.max(1, params?.page ?? 1);
     const pageSize = Math.min(200, Math.max(1, params?.pageSize ?? 20));
@@ -212,6 +265,9 @@ export class InvoiceBulkDownloadService {
 
     if (params?.status) {
       qb.andWhere('bulk.status = :status', { status: params.status });
+    }
+    if (params?.companyId) {
+      qb.andWhere('bulk.companyId = :companyId', { companyId: params.companyId });
     }
 
     const [rows, total] = await qb.getManyAndCount();

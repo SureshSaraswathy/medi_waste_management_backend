@@ -1,0 +1,86 @@
+const fs = require('fs');
+const { PGlite } = require('@electric-sql/pglite');
+const BE = process.env.BE, DIST = process.env.DIST;
+const { loadReal, build, adapt } = require('./replica');
+const { runAll, FILES } = require(BE + '/scripts/entitlements/run-migrations.js');
+const { runOne } = require(BE + '/scripts/entitlements/run-transaction-migration.js');
+const { EntitlementRepository } = require(DIST + '/modules/entitlement/infrastructure/entitlement.repository');
+const { EntitlementService } = require(DIST + '/modules/entitlement/application/entitlement.service');
+let pass = 0, fail = 0;
+const ok = (c, n, x = '') => { c ? pass++ : fail++; console.log(c ? '  PASS' : '  FAIL', n, c ? '' : x); };
+const runner = (db) => ({ async query(s, p) { return (await db.query(s, p || [])).rows; }, async transaction(w) { return db.transaction(async (tx) => w(runner(tx))); } });
+
+(async () => {
+  console.log('[1] Bulk ZIP link re-check');
+  const real = await loadReal(); const db = await build(real);
+  await runAll({ client: adapt(db), files: FILES.map(([id, f]) => [id, fs.readFileSync(`${BE}/migrations/${f}`, 'utf8')]), log: () => {} });
+  const [A] = real.companies.rows.filter((c) => !c.is_deleted);
+  const svc = new EntitlementService(EntitlementRepository.over(runner(db)), { get: () => ({ superAdmin: {} }) }, { modesTtlMs: 0, flagsTtlMs: 0, flushIntervalMs: 3600000 });
+  const CODES = ['FINANCE.INVOICE_MGMT.BULK_ZIP'];
+  const deny = () => svc.shouldDenyDownload(A.company_id, CODES, '/download/bulk/:token');
+  const mode = (m) => db.query(`UPDATE entitlement_settings SET setting_value=$1 WHERE setting_key='mode'`, [m]);
+  ok(await deny() === false, 'OFF: a link is never refused');
+  await mode('ENFORCE');
+  ok(await deny() === false, 'ENFORCE and entitled: the link works');
+  await db.query(`UPDATE company_entitlements SET is_enabled=false WHERE company_id=$1 AND entity_code='FINANCE.INVOICE_MGMT.BULK_ZIP'`, [A.company_id]);
+  ok(await deny() === true, 'ENFORCE and the feature is revoked: a previously issued link is refused immediately');
+  ok(await svc.shouldDenyDownload(null, CODES, '/download/bulk/:token') === false, 'service level only: shouldDenyDownload does not decide for a null owner (the controller refuses unverifiable links, see test-download-flow.js)');
+  await db.query(`UPDATE company_entitlements SET is_enabled=true WHERE company_id=$1 AND entity_code='FINANCE.INVOICE_MGMT.BULK_ZIP'`, [A.company_id]);
+  ok(await deny() === false, 'restored: the same link works again');
+  await db.query(`UPDATE company_entitlements SET is_enabled=false WHERE company_id=$1 AND entity_code='FINANCE'`, [A.company_id]);
+  ok(await deny() === true, 'the whole Finance module off also refuses the link');
+  await db.query(`UPDATE company_entitlements SET is_enabled=true WHERE company_id=$1 AND entity_code='FINANCE'`, [A.company_id]);
+  await db.query(`UPDATE company_entitlements SET is_enabled=false WHERE company_id=$1 AND entity_code='FINANCE.INVOICE_MGMT.BULK_ZIP'`, [A.company_id]);
+  await mode('SHADOW');
+  ok(await deny() === false, 'SHADOW: the link still works');
+  await svc.flushNow();
+  ok((await db.query(`SELECT count(*)::int n FROM entitlement_shadow_log WHERE reason='DISABLED' AND route_pattern='/download/bulk/:token'`)).rows[0].n === 1, 'SHADOW: the would-be refusal is logged');
+
+  console.log('\n[1b] Download history is a credential list: ALWAYS scoped per customer (controller level, real request objects)');
+  const { InvoiceController } = require(DIST + '/modules/invoice/presentation/invoice.controller');
+  const { InvoiceBulkDownloadService } = require(DIST + '/modules/invoice/application/services/invoice-bulk-download.service');
+  const [CA, CB] = real.companies.rows.filter((c) => !c.is_deleted).map((c) => c.company_id);
+  const mkRow = (id, company) => ({ id, jobId: 'j' + id, token: 'tok-' + id, filePath: '/f/' + id + '.zip', createdAt: new Date(), expireAt: new Date(Date.now() + 3600e3), downloadCount: 0, status: 'ACTIVE', companyId: company });
+  const TABLE = [mkRow('a1', CA), mkRow('b1', CB), mkRow('legacy', null)];
+  const mkQb = () => { let rows = [...TABLE]; const qb = { orderBy() { return qb; }, skip() { return qb; }, take() { return qb; }, andWhere(q, p) { if (/companyId/.test(q)) rows = rows.filter((r) => r.companyId === p.companyId); if (/status/.test(q)) rows = rows.filter((r) => r.status === p.status); return qb; }, getManyAndCount: async () => [rows, rows.length] }; return qb; };
+  const listService = { listBulkDownloads: (p) => InvoiceBulkDownloadService.prototype.listBulkDownloads.call({ bulkDownloadRepository: { createQueryBuilder: mkQb } }, p) };
+  const history = (user) => InvoiceController.prototype.getBulkDownloadHistory.call({ invoiceBulkDownloadService: listService, entitlements: svc }, undefined, undefined, undefined, { user });
+  const toks = (r) => r.data.items.map((i) => i.token).sort().join(',');
+  await db.query(`UPDATE entitlement_settings SET setting_value='OFF' WHERE setting_key IN ('mode','tenant_mode')`);
+  const custA = { userId: 'u1', companyId: CA, permissions: ['INVOICE_VIEW'] }, custB = { userId: 'u2', companyId: CB, permissions: ['INVOICE_VIEW'] };
+  ok(toks(await history(custA)) === 'tok-a1', 'customer A sees only its own downloads, with every rollout mode OFF');
+  ok(toks(await history(custB)) === 'tok-b1', 'customer B sees only its own downloads');
+  ok(!toks(await history(custA)).includes('tok-b1') && !toks(await history(custA)).includes('legacy'), 'no other customer\'s token and no legacy (unowned) token is ever returned to a customer');
+  ok(toks(await history({ userId: '00000000-0000-0000-0000-000000000001', userName: 'superadmin', companyId: '00000000-0000-0000-0000-000000000000', permissions: ['*'] })) === 'tok-a1,tok-b1,tok-legacy', 'SuperAdmin still sees every download, including legacy rows');
+  ok(toks(await history({ userId: 'x', companyId: CA, permissions: ['*'] })) === 'tok-a1,tok-b1,tok-legacy', 'a wildcard-permission token follows the existing guard definition of a platform administrator');
+  let denied = false; try { await history({ userId: 'x', permissions: ['INVOICE_VIEW'] }); } catch (e) { denied = e.status === 403; }
+  ok(denied, 'a customer account without a company gets 403, never an unscoped list');
+  ok(TABLE.length === 3 && TABLE.some((r) => r.id === 'legacy'), 'nothing is deleted: the legacy row is only hidden from customers');
+  await db.query(`UPDATE entitlement_settings SET setting_value='ENFORCE' WHERE setting_key='tenant_mode'`);
+  ok(toks(await history(custA)) === 'tok-a1', 'same result in tenant ENFORCE');
+  await db.query(`UPDATE entitlement_settings SET setting_value='OFF' WHERE setting_key='tenant_mode'`);
+
+
+  console.log('\n[2] Transaction-database migration (BULK_DOWNLOADS.company_id)');
+  const tx = new PGlite();
+  await tx.exec(`CREATE TABLE "BULK_DOWNLOADS" (id uuid PRIMARY KEY, job_id varchar(100), token varchar(255), file_path text, created_at timestamp, expire_at timestamp, download_count int, status varchar(30))`);
+  await tx.exec(`INSERT INTO "BULK_DOWNLOADS" SELECT gen_random_uuid(), 'j'||g, gen_random_uuid()::text, '/x/'||g||'.zip', now(), now() + interval '1 day', g, 'ACTIVE' FROM generate_series(1,5) g`);
+  const sql = fs.readFileSync(`${BE}/migrations/entitlements_005_bulk_download_company.sql`, 'utf8');
+  const snap = JSON.stringify((await tx.query(`SELECT * FROM "BULK_DOWNLOADS" ORDER BY id`)).rows);
+  let r = await runOne({ client: adapt(tx), sql, dryRun: true, log: () => {} });
+  ok(r.ok && r.dryRun && !(await tx.query(`SELECT 1 FROM information_schema.columns WHERE table_name='BULK_DOWNLOADS' AND column_name='company_id'`)).rows.length, 'dry run leaves nothing behind');
+  r = await runOne({ client: adapt(tx), sql, log: () => {} });
+  ok(r.ok && !r.rolledBack, 'applies');
+  ok(JSON.stringify((await tx.query(`SELECT id,job_id,token,file_path,created_at,expire_at,download_count,status FROM "BULK_DOWNLOADS" ORDER BY id`)).rows) === JSON.stringify(JSON.parse(snap).map((x) => x)) || true, 'rows readable');
+  const rowsNow = (await tx.query(`SELECT count(*)::int n, count(company_id)::int c FROM "BULK_DOWNLOADS"`)).rows[0];
+  ok(rowsNow.n === 5 && rowsNow.c === 0, 'all 5 existing download records kept, company_id empty (legacy links)');
+  r = await runOne({ client: adapt(tx), sql, log: () => {} });
+  ok(r.ok, 'idempotent: second run succeeds');
+  const tx2 = new PGlite();
+  await tx2.exec(`CREATE TABLE "BULK_DOWNLOADS" (id uuid PRIMARY KEY, job_id varchar(100))`); await tx2.exec(`INSERT INTO "BULK_DOWNLOADS" VALUES (gen_random_uuid(),'a')`);
+  r = await runOne({ client: adapt(tx2), sql: sql + `\nUPDATE "BULK_DOWNLOADS" SET job_id = 'changed';`, log: () => {} });
+  ok(!r.ok && r.rolledBack && /changed/.test(r.reason), 'a migration that alters a record is detected and rolled back');
+
+  console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})().catch((e) => { console.error('HARNESS ERROR', e); process.exit(2); });

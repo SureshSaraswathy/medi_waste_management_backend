@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Optional, UnauthorizedException } from '@nestjs/common';
+import { CHANNEL_LOGIN_POLICY, ChannelLoginPolicy } from '../channel-login-policy';
 import { Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IUserRepository } from '../../../user/domain/interfaces/user.repository.interface';
@@ -50,6 +51,8 @@ export class LoginUseCase {
     @InjectDataSource('master')
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
+    @Optional() @Inject(CHANNEL_LOGIN_POLICY)
+    private readonly channelPolicy?: ChannelLoginPolicy,
   ) {
     const appConfig = this.configService.get('app');
     this.superAdminConfig = appConfig?.superAdmin || {
@@ -61,7 +64,8 @@ export class LoginUseCase {
     };
   }
 
-  async execute(usernameOrEmail: string, password: string): Promise<LoginResponse> {
+  async execute(usernameOrEmail: string, password: string, channel?: 'mobile' | 'desktop'): Promise<LoginResponse> {
+    const channelClaim = channel === 'mobile' ? 'MOBILE' : 'DESKTOP';
     // Normalize input
     const normalizedInput = usernameOrEmail.trim().toLowerCase();
 
@@ -99,6 +103,7 @@ export class LoginUseCase {
           companyId: '00000000-0000-0000-0000-000000000000', // System company ID
           userRoleId: null,
           permissions, // Include permissions in token
+          channel: channelClaim,
         });
       }
 
@@ -224,6 +229,11 @@ export class LoginUseCase {
       user.userName,
     );
 
+    // A customer whose Mobile App is not enabled is refused here, before any OTP or token (platform admins are exempt)
+    if (channelClaim === 'MOBILE' && this.channelPolicy && !(Array.isArray(permissions) && permissions.includes('*'))) {
+      await this.channelPolicy.assertChannelAllowed(user.companyId, 'MOBILE_APP', { userId: user.userId });
+    }
+
     // Generate JWT token if OTP not required
     let token: string | undefined;
     if (!requiresOTP) {
@@ -234,6 +244,7 @@ export class LoginUseCase {
         companyId: user.companyId,
         userRoleId: user.userRoleId || null,
         permissions,
+        channel: channelClaim,
       });
     }
 
@@ -318,6 +329,9 @@ export class LoginUseCase {
       // Load HCF permissions
       const permissions = this.getHCFPermissions();
 
+      // HCF Portal disabled for this HCF's customer: refuse before a token exists (the login endpoint itself stays public)
+      if (this.channelPolicy) await this.channelPolicy.assertChannelAllowed(hcf.companyId, 'HCF_PORTAL', { userId: hcf.hcfId });
+
       // Generate JWT token
       const token = await this.jwtService.generateToken({
         userId: hcf.hcfId,
@@ -326,6 +340,8 @@ export class LoginUseCase {
         companyId: hcf.companyId,
         userRoleId: null,
         permissions,
+        userType: 'HCF',
+        channel: 'HCF_PORTAL',
       });
 
       return {
@@ -345,7 +361,8 @@ export class LoginUseCase {
       };
     } catch (error) {
       // If HCF login fails, log the error and throw
-      if (error instanceof UnauthorizedException) {
+      // a licence refusal (403 FEATURE_NOT_LICENSED) is a deliberate answer, not an unexpected error
+      if (error instanceof UnauthorizedException || error instanceof ForbiddenException) {
         // Re-throw the original error (it already has the correct message)
         throw error;
       }

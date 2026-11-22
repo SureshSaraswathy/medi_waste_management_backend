@@ -1,4 +1,5 @@
-import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Inject, Optional, UnauthorizedException } from '@nestjs/common';
+import { CHANNEL_LOGIN_POLICY, ChannelLoginPolicy } from '../../../auth/application/channel-login-policy';
 import { HCF_REPOSITORY_TOKEN } from '../../../hcf/domain/interfaces/hcf.repository.interface';
 import { IHcfRepository } from '../../../hcf/domain/interfaces/hcf.repository.interface';
 import { PasswordService } from '../../../user/application/services/password.service';
@@ -19,6 +20,8 @@ export class HCFLoginUseCase {
     private readonly passwordService: PasswordService,
     private readonly jwtService: AuthJwtService,
     private readonly permissionService: PermissionService,
+    @Optional() @Inject(CHANNEL_LOGIN_POLICY)
+    private readonly channelPolicy?: ChannelLoginPolicy,
   ) {}
 
   async execute(hcfCode: string, password: string): Promise<HCFLoginResponse> {
@@ -73,6 +76,9 @@ export class HCFLoginUseCase {
     // Load HCF permissions
     const permissions = this.getHCFPermissions();
 
+    // HCF Portal disabled for this HCF's customer: refuse before a token exists (the login endpoint itself stays public)
+    if (this.channelPolicy) await this.channelPolicy.assertChannelAllowed(hcf.companyId, 'HCF_PORTAL', { userId: hcf.hcfId, route: '/hcf-auth/login' });
+
     // Generate JWT token
     const token = await this.jwtService.generateToken({
       userId: hcf.hcfId,
@@ -81,6 +87,8 @@ export class HCFLoginUseCase {
       companyId: hcf.companyId,
       userRoleId: null,
       permissions,
+      userType: 'HCF',
+      channel: 'HCF_PORTAL',
     });
 
     return {

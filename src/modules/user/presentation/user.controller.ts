@@ -194,8 +194,16 @@ export class UserController {
 
   @Get('username/:userName')
   @RequirePermissions('USER_VIEW')
-  async findByUsername(@Param('userName') userName: string) {
-    const userData = await this.getUserByUsernameUseCase.execute(userName);
+  async findByUsername(@Param('userName') userName: string, @Request() req: any, @Query('companyId') companyId?: string) {
+    // userName is unique only within a company: customer users are always limited to their own company (from the
+    // verified JWT). Only platform administrators may search another company (?companyId=) or all companies.
+    const user = req.user || {};
+    const isPlatformAdmin =
+      (Array.isArray(user.permissions) && user.permissions.includes('*')) ||
+      (Array.isArray(user.roles) && (user.roles.includes('superadmin') || user.roles.includes('SUPER_ADMIN'))) ||
+      user.userId === '00000000-0000-0000-0000-000000000001';
+    const scope = isPlatformAdmin ? companyId || undefined : user.companyId;
+    const userData = await this.getUserByUsernameUseCase.execute(userName, scope);
     return {
       success: true,
       data: userData,

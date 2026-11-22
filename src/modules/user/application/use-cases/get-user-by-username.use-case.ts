@@ -11,7 +11,8 @@ import { UserAddressEntity } from '../../infrastructure/persistence/user-address
 
 /**
  * Use Case: Get User by UserName
- * Searches across all companies to find a user by userName
+ * Finds a user by userName. userName is unique only WITHIN a company, so a customer user's lookup is always limited to
+ * their own company (companyId given). Without a companyId (platform administrators only) it searches all companies.
  */
 @Injectable()
 export class GetUserByUsernameUseCase {
@@ -22,7 +23,7 @@ export class GetUserByUsernameUseCase {
     private readonly dataSource: DataSource,
   ) {}
 
-  async execute(userName: string): Promise<any> {
+  async execute(userName: string, companyId?: string): Promise<any> {
     // Search for user by userName across all companies
     // We need to query the database directly since repository method requires companyId
     const userEntity = await this.dataSource
@@ -30,6 +31,7 @@ export class GetUserByUsernameUseCase {
       .createQueryBuilder('user')
       .where('user.userName = :userName', { userName })
       .andWhere('user.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere(companyId ? 'user.companyId = :companyId' : '1=1', companyId ? { companyId } : {})
       .getOne();
 
     if (!userEntity) {
