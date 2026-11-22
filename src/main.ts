@@ -27,12 +27,13 @@ async function bootstrap() {
 
   // CORS configuration
   // Support:
+  // - development / "*" : reflect request origin (LAN IP, localhost, phone demo)
   // - single origin string: "http://localhost:5173"
-  // - comma-separated list: "http://localhost:5173,http://192.168.1.10:5173"
-  // - "*" (dev): reflect request origin (safe with credentials)
+  // - comma-separated list: "http://localhost:5173,https://app.example.com"
+  const isDev = (appConfig.nodeEnv || 'development') !== 'production';
   const corsOriginRaw = appConfig.corsOrigin;
   const origin =
-    corsOriginRaw === '*' || !corsOriginRaw
+    isDev || corsOriginRaw === '*' || !corsOriginRaw
       ? true
       : typeof corsOriginRaw === 'string' && corsOriginRaw.includes(',')
         ? (requestOrigin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
@@ -51,9 +52,11 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   const port = appConfig.port || 3000;
-  await app.listen(port);
+  const host = appConfig.host || '0.0.0.0';
+  await app.listen(port, host);
 
   console.log(`🚀 Application is running on: http://localhost:${port}/api/v1`);
+  console.log(`🌐 LAN/demo bind: http://${host}:${port}/api/v1`);
   console.log(`📝 Environment: ${appConfig.nodeEnv}`);
 }
 
