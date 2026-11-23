@@ -12,7 +12,17 @@ import {
   UseGuards,
   UseInterceptors,
   Request,
+  ParseUUIDPipe,
+  UploadedFile,
+  Res,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
+import { CompanyLogoService } from '../application/services/company-logo.service';
+import { MAX_LOGO_BYTES } from '../../../common/storage/image-validator.util';
 import { CreateCompanyUseCase } from '../application/use-cases/create-company.use-case';
 import { GetCompanyUseCase } from '../application/use-cases/get-company.use-case';
 import { GetAllCompaniesUseCase } from '../application/use-cases/get-all-companies.use-case';
@@ -40,7 +50,34 @@ export class CompanyController {
     private readonly deleteCompanyUseCase: DeleteCompanyUseCase,
     @Inject(COMPANY_REPOSITORY_TOKEN)
     private readonly companyRepository: ICompanyRepository,
+    private readonly companyLogoService: CompanyLogoService,
   ) {}
+
+  /** Adds logoUrl / logoUpdatedAt (read via raw SQL, so it is safe before the migration is applied). */
+  private withLogo(dto: CompanyResponseDto, info?: { logoPath: string; logoUpdatedAt: Date | null } | null) {
+    dto.logoUrl = this.companyLogoService.buildUrl(dto.id, info as any);
+    dto.logoUpdatedAt = info?.logoUpdatedAt ? new Date(info.logoUpdatedAt).toISOString() : null;
+    return dto;
+  }
+
+  /**
+   * A customer user may only change or read the logo of ITS OWN company (company id from the verified JWT);
+   * platform administrators (wildcard permission, superadmin role or the SuperAdmin id) may address any company.
+   */
+  private assertOwnCompany(user: any, companyId: string): void {
+    const platformAdmin =
+      (Array.isArray(user?.permissions) && user.permissions.includes('*')) ||
+      (Array.isArray(user?.roles) && (user.roles.includes('superadmin') || user.roles.includes('SUPER_ADMIN'))) ||
+      user?.userId === '00000000-0000-0000-0000-000000000001';
+    if (!platformAdmin && (!user?.companyId || user.companyId !== companyId)) {
+      throw new ForbiddenException('You can only manage the logo of your own company');
+    }
+  }
+
+  private async dtoWithLogo(entity: any): Promise<CompanyResponseDto> {
+    const info = await this.companyRepository.getLogoInfo(entity.companyId);
+    return this.withLogo(this.entityToResponseDto(entity), info);
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -56,7 +93,7 @@ export class CompanyController {
     }
     return {
       success: true,
-      data: this.entityToResponseDto(entity),
+      data: await this.dtoWithLogo(entity),
       message: 'Company created successfully',
     };
   }
@@ -65,9 +102,10 @@ export class CompanyController {
   @RequirePermissions('COMPANY_VIEW')
   async findAll(@Query('activeOnly') activeOnly?: string) {
     const entities = await this.companyRepository.getAllEntities(activeOnly === 'true');
+    const logos = await this.companyRepository.getLogoInfoMap();
     return {
       success: true,
-      data: entities.map((e) => this.entityToResponseDto(e)),
+      data: entities.map((e) => this.withLogo(this.entityToResponseDto(e), logos.get(e.companyId))),
       message: 'Companies retrieved successfully',
     };
   }
@@ -81,7 +119,7 @@ export class CompanyController {
     }
     return {
       success: true,
-      data: this.entityToResponseDto(entity),
+      data: await this.dtoWithLogo(entity),
       message: 'Company retrieved successfully',
     };
   }
@@ -104,9 +142,56 @@ export class CompanyController {
     }
     return {
       success: true,
-      data: this.entityToResponseDto(entity),
+      data: await this.dtoWithLogo(entity),
       message: 'Company updated successfully',
     };
+  }
+
+  // ---- Company Logo ----------------------------------------------------------------------
+
+  @Post(':id/logo')
+  @RequirePermissions('COMPANY_EDIT')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_LOGO_BYTES, files: 1 } }))
+  async uploadLogo(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @UploadedFile() file: any,
+    @Request() req: any,
+  ) {
+    this.assertOwnCompany(req.user, id);
+    if (!file) throw new BadRequestException('No file uploaded. Send the image in the "file" field.');
+    const info = await this.companyLogoService.upload(id, file);
+    return {
+      success: true,
+      data: {
+        logoUrl: this.companyLogoService.buildUrl(id, info),
+        logoUpdatedAt: info?.logoUpdatedAt ? new Date(info.logoUpdatedAt).toISOString() : null,
+      },
+      message: 'Company logo saved successfully',
+    };
+  }
+
+  @Delete(':id/logo')
+  @RequirePermissions('COMPANY_EDIT')
+  async removeLogo(@Param('id', new ParseUUIDPipe()) id: string, @Request() req: any) {
+    this.assertOwnCompany(req.user, id);
+    await this.companyLogoService.remove(id);
+    return { success: true, data: { logoUrl: null, logoUpdatedAt: null }, message: 'Company logo removed' };
+  }
+
+  @Get(':id/logo')
+  @RequirePermissions('COMPANY_VIEW')
+  async getLogo(@Param('id', new ParseUUIDPipe()) id: string, @Res() res: Response, @Request() req: any) {
+    this.assertOwnCompany(req.user, id);
+    const file = await this.companyLogoService.getFile(id);
+    if (!file) throw new NotFoundException('Company logo not configured');
+    res.set({
+      'Content-Type': file.mime,
+      'Content-Length': String(file.buffer.length),
+      'Cache-Control': 'private, max-age=3600',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+    });
+    res.end(file.buffer);
   }
 
   @Delete(':id')

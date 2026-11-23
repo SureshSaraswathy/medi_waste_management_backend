@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { SampleModule } from './modules/sample/sample.module';
 import { UserModule } from './modules/user/user.module';
 import { CompanyModule } from './modules/company/company.module';
+import { BrandingModule } from './modules/branding/branding.module';
 import { RoleModule } from './modules/role/role.module';
 import { PermissionModule } from './modules/permission/permission.module';
 import { StateModule } from './modules/state/state.module';
@@ -105,6 +106,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     UserModule,
     AuthModule,
     CompanyModule,
+    BrandingModule,
     RoleModule,
     PermissionModule,
     StateModule,

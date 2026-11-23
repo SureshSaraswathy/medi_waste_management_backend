@@ -54,3 +54,6 @@ ecosystem.config.js.bak
 *.swo
 *~
 .cache
+
+# Uploaded files (company / application logos)
+/storage/uploads/

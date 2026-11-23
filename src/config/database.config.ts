@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { UserEntity } from '../modules/user/infrastructure/persistence/user.entity';
@@ -41,6 +42,39 @@ import { ETPRegisterEntity } from '../modules/etp-register/infrastructure/transa
 import { DowntimeRegisterEntity } from '../modules/downtime-register/infrastructure/transaction/downtime-register.entity';
 import { DashboardConfigEntity } from '../modules/dashboard/entities/dashboard-config.entity';
 
+
+/**
+ * Schema synchronization guard (TypeORM `synchronize` alters / DROPS tables and columns to match the entities).
+ *
+ * It is enabled ONLY when NODE_ENV is exactly "development" AND the relevant flag is exactly "true". Production,
+ * staging, test, an unset NODE_ENV, "Development", "TRUE", "1", ... all keep it OFF. Schema changes in every other
+ * environment go through reviewed SQL migrations. The same four factories configure the API and the worker
+ * (WorkerModule loads the same ConfigModule), so both processes are protected identically.
+ * The effective decision is logged at start-up (one line per connection) so it is visible in the PM2 logs.
+ */
+export const SYNCHRONIZE_FLAGS = ['MASTER_DB_SYNCHRONIZE', 'TRANSACTION_DB_SYNCHRONIZE', 'REPORT_DB_SYNCHRONIZE', 'DB_SYNCHRONIZE'] as const;
+
+export function resolveSynchronize(flagName: string, env: NodeJS.ProcessEnv = process.env) {
+  const nodeEnv = env.NODE_ENV;
+  const requested = env[flagName];
+  const effective = nodeEnv === 'development' && requested === 'true';
+  const reason = effective
+    ? 'enabled: NODE_ENV is "development" and the flag is "true"'
+    : requested === 'true'
+      ? `IGNORED: the flag is "true" but NODE_ENV is ${nodeEnv === undefined ? 'not set' : `"${nodeEnv}"`} (synchronize needs NODE_ENV exactly "development")`
+      : 'disabled';
+  return { flagName, requested, nodeEnv, effective, reason };
+}
+
+const syncLogger = new Logger('DatabaseSync');
+export function synchronizeFor(flagName: string, connection: string): boolean {
+  const d = resolveSynchronize(flagName);
+  const line = `${connection}: synchronize=${d.effective} (${flagName}=${d.requested === undefined ? '<unset>' : JSON.stringify(d.requested)}, NODE_ENV=${d.nodeEnv === undefined ? '<unset>' : JSON.stringify(d.nodeEnv)}) ${d.reason}`;
+  if (!d.effective && d.requested === 'true') syncLogger.warn(line);
+  else syncLogger.log(line);
+  return d.effective;
+}
+
 // Master Database Config - For reference/master data
 export const masterDatabaseConfig = registerAs(
   'masterDatabase',
@@ -76,7 +110,7 @@ export const masterDatabaseConfig = registerAs(
       // Also include glob patterns as fallback
       __dirname + '/../modules/**/infrastructure/persistence/*.entity{.ts,.js}',
     ],
-    synchronize: process.env.MASTER_DB_SYNCHRONIZE === 'true',
+    synchronize: synchronizeFor('MASTER_DB_SYNCHRONIZE', 'master'),
     logging: process.env.MASTER_DB_LOGGING === 'true',
     migrations: [__dirname + '/../database/migrations/master/*{.ts,.js}'],
     migrationsRun: false,
@@ -119,7 +153,7 @@ export const transactionDatabaseConfig = registerAs(
       __dirname + '/../modules/**/transaction/**/*.entity{.ts,.js}',
       __dirname + '/../modules/**/infrastructure/transaction/**/*.entity{.ts,.js}',
     ],
-    synchronize: process.env.TRANSACTION_DB_SYNCHRONIZE === 'true',
+    synchronize: synchronizeFor('TRANSACTION_DB_SYNCHRONIZE', 'transaction'),
     logging: process.env.TRANSACTION_DB_LOGGING === 'true',
     migrations: [__dirname + '/../database/migrations/transaction/*{.ts,.js}'],
     migrationsRun: false,
@@ -144,7 +178,7 @@ export const reportDatabaseConfig = registerAs(
       __dirname + '/../modules/**/report/**/*.entity{.ts,.js}',
       __dirname + '/../modules/dashboard/entities/*.entity{.ts,.js}',
     ],
-    synchronize: process.env.REPORT_DB_SYNCHRONIZE === 'true',
+    synchronize: synchronizeFor('REPORT_DB_SYNCHRONIZE', 'report'),
     logging: process.env.REPORT_DB_LOGGING === 'true',
     migrations: [__dirname + '/../database/migrations/report/*{.ts,.js}'],
     migrationsRun: false,
@@ -163,7 +197,7 @@ export default registerAs(
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_DATABASE || 'medi_waste_management',
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-    synchronize: process.env.DB_SYNCHRONIZE === 'true',
+    synchronize: synchronizeFor('DB_SYNCHRONIZE', 'default'),
     logging: process.env.DB_LOGGING === 'true',
     migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
     migrationsRun: false,

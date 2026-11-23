@@ -16,4 +16,16 @@ export interface ICompanyRepository {
   findActive(): Promise<Company[]>;
   getEntityById(companyId: string): Promise<any | null>; // Get raw entity with all fields
   getAllEntities(activeOnly?: boolean): Promise<any[]>; // Get raw entities with all fields
+
+  // Logo support (raw SQL; degrade gracefully if the logo migration has not been applied yet)
+  getLogoInfo(companyId: string): Promise<CompanyLogoInfo | null>;
+  getLogoInfoMap(): Promise<Map<string, CompanyLogoInfo>>;
+  setLogo(companyId: string, logoPath: string, logoMime: string): Promise<void>;
+  clearLogo(companyId: string): Promise<void>;
+}
+
+export interface CompanyLogoInfo {
+  logoPath: string;
+  logoMime: string;
+  logoUpdatedAt: Date | null;
 }

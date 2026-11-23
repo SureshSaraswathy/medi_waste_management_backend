@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import {
   ICompanyRepository,
   COMPANY_REPOSITORY_TOKEN,
+  CompanyLogoInfo,
 } from '../../domain/interfaces/company.repository.interface';
 import { Company, CompanyStatus } from '../../domain/entities/company.domain.entity';
 import { CompanyEntity } from './company.entity';
@@ -182,6 +183,62 @@ export class CompanyRepository implements ICompanyRepository {
 
   async delete(companyId: string): Promise<void> {
     await this.repository.update(companyId, { isDeleted: true });
+  }
+
+  // ---- Logo support -------------------------------------------------------------------
+  // Raw SQL on purpose: reads are defensive (a missing column answers "no logo" instead of failing) and the logo
+  // is changed by dedicated statements only. The columns ARE mapped on CompanyEntity (so TypeORM synchronize cannot
+  // drop them); add_logo_support.sql must therefore be applied BEFORE this code is deployed.
+
+  async getLogoInfo(companyId: string): Promise<CompanyLogoInfo | null> {
+    try {
+      const rows = await this.repository.query(
+        `SELECT logo_path, logo_mime, logo_updated_at
+           FROM companies WHERE company_id = $1 AND is_deleted = false`,
+        [companyId],
+      );
+      const r = rows?.[0];
+      if (!r || !r.logo_path) return null;
+      return { logoPath: r.logo_path, logoMime: r.logo_mime, logoUpdatedAt: r.logo_updated_at };
+    } catch {
+      return null; // columns not migrated yet
+    }
+  }
+
+  async getLogoInfoMap(): Promise<Map<string, CompanyLogoInfo>> {
+    const map = new Map<string, CompanyLogoInfo>();
+    try {
+      const rows = await this.repository.query(
+        `SELECT company_id, logo_path, logo_mime, logo_updated_at
+           FROM companies WHERE logo_path IS NOT NULL AND is_deleted = false`,
+      );
+      for (const r of rows || []) {
+        map.set(r.company_id, {
+          logoPath: r.logo_path,
+          logoMime: r.logo_mime,
+          logoUpdatedAt: r.logo_updated_at,
+        });
+      }
+    } catch {
+      // columns not migrated yet -> no logos
+    }
+    return map;
+  }
+
+  async setLogo(companyId: string, logoPath: string, logoMime: string): Promise<void> {
+    await this.repository.query(
+      `UPDATE companies SET logo_path = $1, logo_mime = $2, logo_updated_at = NOW()
+         WHERE company_id = $3 AND is_deleted = false`,
+      [logoPath, logoMime, companyId],
+    );
+  }
+
+  async clearLogo(companyId: string): Promise<void> {
+    await this.repository.query(
+      `UPDATE companies SET logo_path = NULL, logo_mime = NULL, logo_updated_at = NULL
+         WHERE company_id = $1`,
+      [companyId],
+    );
   }
 
   async findAll(): Promise<Company[]> {

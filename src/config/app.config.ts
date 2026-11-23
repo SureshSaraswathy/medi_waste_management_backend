@@ -12,6 +12,8 @@ export default registerAs('app', () => ({
   corsOrigin:
     process.env.CORS_ORIGIN ||
     ((process.env.NODE_ENV || 'development') === 'production' ? 'http://localhost:5173' : '*'),
+  // Root folder for uploaded files (logos). Relative paths resolve from the process working directory.
+  uploadDir: process.env.UPLOAD_DIR || './storage/uploads',
   superAdmin: {
     username: process.env.SUPER_ADMIN_USERNAME || 'superadmin',
     password: process.env.SUPER_ADMIN_PASSWORD || 'admin123',

@@ -12,6 +12,12 @@ module.exports = {
       env_production: {
         NODE_ENV: 'production',
         PORT: 3000,
+        // Schema synchronization must never run in production (it alters/drops tables). The application also
+        // ignores these flags unless NODE_ENV is exactly "development", but they are pinned here explicitly.
+        MASTER_DB_SYNCHRONIZE: 'false',
+        TRANSACTION_DB_SYNCHRONIZE: 'false',
+        REPORT_DB_SYNCHRONIZE: 'false',
+        DB_SYNCHRONIZE: 'false',
       },
       error_file: './logs/pm2-error.log',
       out_file: './logs/pm2-out.log',

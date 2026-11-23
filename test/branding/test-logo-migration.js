@@ -1,0 +1,51 @@
+// migrations/add_logo_support.sql through scripts/run-logo-migration.js on in-memory PostgreSQL (PGlite): additive, idempotent,
+// existing rows untouched, dry run, rollback on tampering, refusal without the right --confirm. Env: PGLITE (pglite folder).
+const fs = require('fs'), path = require('path'), { spawnSync } = require('child_process');
+const { PGlite } = require(process.env.PGLITE);
+const root = path.resolve(__dirname, '../..');
+const { runMigration } = require(root + '/scripts/run-logo-migration.js');
+const sql = fs.readFileSync(root + '/migrations/add_logo_support.sql', 'utf8');
+let pass = 0, fail = 0;
+const ok = (c, n, x = '') => { c ? pass++ : fail++; console.log(c ? '  PASS' : '  FAIL', n, c ? '' : x); };
+const adapt = (db) => ({ query: async (s, p) => { if (p) return db.query(s, p); const r = await db.exec(s); return r.length ? r[r.length - 1] : { rows: [] }; } });
+const mk = async () => {
+  const db = new PGlite();
+  await db.exec(`CREATE TABLE companies (company_id uuid PRIMARY KEY, company_code varchar(20), company_name varchar(200), is_deleted boolean DEFAULT false, created_on timestamp DEFAULT now())`);
+  await db.exec(`INSERT INTO companies (company_id, company_code, company_name) SELECT gen_random_uuid(), 'C'||g, 'Company '||g FROM generate_series(1,4) g`);
+  return db;
+};
+(async () => {
+  console.log('[1] fresh database');
+  let db = await mk(); const before = (await db.query(`SELECT company_id, company_code, company_name, is_deleted FROM companies ORDER BY company_id`)).rows;
+  let r = await runMigration({ client: adapt(db), sql, dryRun: true, log: () => {} });
+  ok(r.ok && r.dryRun && !(await db.query(`SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='logo_path'`)).rows.length && (await db.query(`SELECT to_regclass('public.app_settings') t`)).rows[0].t === null, 'dry run leaves nothing behind (no columns, no table)');
+  r = await runMigration({ client: adapt(db), sql, log: () => {} }); ok(r.ok && !r.rolledBack, 'applies');
+  const cols = (await db.query(`SELECT column_name, is_nullable, column_default FROM information_schema.columns WHERE table_name='companies' AND column_name LIKE 'logo_%' ORDER BY 1`)).rows;
+  ok(cols.length === 3 && cols.every((c) => c.is_nullable === 'YES' && c.column_default === null), 'three nullable columns, no default (catalog-only change)');
+  ok(JSON.stringify((await db.query(`SELECT company_id, company_code, company_name, is_deleted FROM companies ORDER BY company_id`)).rows) === JSON.stringify(before), 'all existing company rows unchanged');
+  ok((await db.query(`SELECT count(*)::int n FROM companies WHERE logo_path IS NOT NULL`)).rows[0].n === 0, 'no company gets a logo reference');
+  r = await runMigration({ client: adapt(db), sql, log: () => {} }); ok(r.ok, 'idempotent: second run succeeds');
+  console.log('\n[2] existing app_settings table is left exactly as it is');
+  db = await mk(); await db.exec(`CREATE TABLE app_settings (setting_key varchar(100) PRIMARY KEY, setting_value jsonb, updated_at timestamp NOT NULL DEFAULT NOW(), updated_by uuid)`); await db.exec(`INSERT INTO app_settings (setting_key, setting_value) VALUES ('other', '{"a":1}')`);
+  r = await runMigration({ client: adapt(db), sql, log: () => {} }); ok(r.ok && (await db.query(`SELECT setting_value->>'a' a FROM app_settings WHERE setting_key='other'`)).rows[0].a === '1', 'pre-existing settings row survives');
+  console.log('\n[3] a migration that alters data is rolled back');
+  db = await mk(); r = await runMigration({ client: adapt(db), sql: sql + `\nUPDATE companies SET company_name = 'changed' WHERE company_code = 'C1';`, log: () => {} });
+  ok(!r.ok && r.rolledBack && (await db.query(`SELECT company_name FROM companies WHERE company_code='C1'`)).rows[0].company_name === 'Company 1' && !(await db.query(`SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='logo_path'`)).rows.length, 'detected, rolled back completely (data and schema)', JSON.stringify(r));
+  console.log('\n[5] documented rollback (the commented block at the end of the migration)');
+  db = await mk(); await db.exec(`CREATE TABLE app_settings (setting_key varchar(100) PRIMARY KEY, setting_value jsonb, updated_at timestamp NOT NULL DEFAULT NOW(), updated_by uuid)`); await db.exec(`INSERT INTO app_settings (setting_key, setting_value) VALUES ('application_logo', '{"path":"branding/x.png"}')`);
+  const snap = JSON.stringify((await db.query(`SELECT company_id, company_code, company_name, is_deleted FROM companies ORDER BY company_id`)).rows);
+  await runMigration({ client: adapt(db), sql, log: () => {} });
+  await db.query(`UPDATE companies SET logo_path = 'companies/x/logo-1.png', logo_mime = 'image/png' WHERE company_code = 'C1'`);
+  const rb = sql.split(/\r?\n/).filter((l) => /^--\s+(BEGIN;|ALTER TABLE companies DROP COLUMN IF EXISTS \w+;|COMMIT;)\s*$/.test(l)).map((l) => l.replace(/^--\s+/, '')).join(' ');
+  ok(/^BEGIN; (ALTER TABLE companies DROP COLUMN IF EXISTS logo_\w+; ){3}COMMIT;$/.test(rb), 'the rollback block drops exactly the three logo columns and nothing else', rb);
+  await db.exec(rb);
+  ok(!(await db.query(`SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name LIKE 'logo_%'`)).rows.length, 'rollback removes the three columns');
+  ok(JSON.stringify((await db.query(`SELECT company_id, company_code, company_name, is_deleted FROM companies ORDER BY company_id`)).rows) === snap, 'company records are unchanged by the rollback');
+  ok((await db.query(`SELECT count(*)::int n FROM app_settings`)).rows[0].n === 1, 'app_settings (and the Application Logo setting) is NOT dropped by the rollback');
+  r = await runMigration({ client: adapt(db), sql, log: () => {} }); ok(r.ok, 'the migration can be applied again after a rollback');
+  console.log('\n[4] command line refusals (no database is contacted)');
+  const run = (args) => spawnSync(process.execPath, [root + '/scripts/run-logo-migration.js', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, MASTER_DB_DATABASE: 'some_db', MASTER_DB_HOST: '127.0.0.1', MASTER_DB_PORT: '1' } });
+  let c = run([]); ok(c.status === 2 && /--confirm/.test(c.stderr), 'no --confirm -> refused (exit 2)');
+  c = run(['--confirm', 'wrong_db']); ok(c.status === 2 && /does not match/.test(c.stderr), 'wrong database name -> refused (exit 2)');
+  console.log(`\nRESULT: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
+})().catch((e) => { console.error('HARNESS ERROR', e); process.exit(2); });

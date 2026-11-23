@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as QRCode from 'qrcode';
 import pLimit from 'p-limit';
+import { CompanyLogoService } from '../../../company/application/services/company-logo.service';
 import { InvoiceTemplateUtil, InvoiceTemplateData } from '../../../../common/utils/invoice-template.util';
 import { PdfGeneratorUtil, PDFOptions } from '../../../../common/utils/pdf-generator.util';
 import { ZipGenerator, ZipFileEntry, ZipManifestEntry } from '../../../../common/utils/zip-generator.util';
@@ -35,6 +36,7 @@ export class InvoicePdfService implements OnModuleDestroy {
     private readonly companyEntityRepository: Repository<CompanyEntity>,
     @InjectRepository(HcfEntity, 'master')
     private readonly hcfEntityRepository: Repository<HcfEntity>,
+    private readonly companyLogoService: CompanyLogoService,
   ) {}
 
   /**
@@ -469,6 +471,10 @@ export class InvoicePdfService implements OnModuleDestroy {
     const companyAddress = 'Address not available'; // Company entity doesn't have address fields
     const companyStateCode = '33'; // Default state code
 
+    // Logo of the company that OWNS this invoice (invoice.companyId), embedded as a data-URI.
+    // undefined when the company has no logo -> template keeps its existing placeholder.
+    const companyLogo = await this.companyLogoService.getLogoDataUri(company?.companyId || invoice.companyId);
+
     return {
       // Company Details
       companyName: company?.companyName || 'ABC BMW Solution Pvt Ltd',
@@ -476,7 +482,7 @@ export class InvoicePdfService implements OnModuleDestroy {
       adminAddress: 'Address not available', // Company entity doesn't have this field
       companyTel: 'Not available', // Company entity doesn't have contact field
       companyGSTIN: '33AAAAA0000A1Z5', // Default GSTIN - Company entity doesn't have this field
-      companyLogo: undefined,
+      companyLogo,
 
       // Invoice Details
       invoiceNum: invoice.invoiceNumber,

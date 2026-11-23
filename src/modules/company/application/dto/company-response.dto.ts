@@ -183,4 +183,13 @@ export class CompanyResponseDto {
   @IsString()
   @IsOptional()
   qrCode?: string | null;
+
+  // Logo (read-only; managed through POST/DELETE /companies/:id/logo)
+  @IsString()
+  @IsOptional()
+  logoUrl?: string | null;
+
+  @IsString()
+  @IsOptional()
+  logoUpdatedAt?: string | null;
 }

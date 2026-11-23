@@ -319,7 +319,7 @@ export class InvoiceTemplateUtil {
           <table style="width: 100%; border: 1px solid #000; margin-bottom: 5px;">
             <tr>
               <td style="width: 15%; text-align: center; padding: 10px; border-right: 1px solid #000;">
-                <div style="font-size: 10px;">Company<br/>Logo</div>
+                ${InvoiceTemplateUtil.renderCompanyLogo(data.companyLogo)}
               </td>
               <td style="width: 55%; text-align: center; padding: 5px; border-right: 1px solid #000;">
                 <div style="font-size: 16px; font-weight: bold; color: #0066cc;">${InvoiceTemplateUtil.escapeHtml(data.companyName)}</div>
@@ -556,6 +556,18 @@ export class InvoiceTemplateUtil {
     const num = Number(value);
     if (isNaN(num)) return '0.00';
     return num.toFixed(2);
+  }
+
+  /**
+   * Company logo cell content. Only accepts a base64 data-URI of an allowed image type
+   * (produced by CompanyLogoService); anything else falls back to the original placeholder text.
+   */
+  private static renderCompanyLogo(logo?: string): string {
+    const safe = /^data:image\/(png|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(logo || '');
+    if (!safe) {
+      return '<div style="font-size: 10px;">Company<br/>Logo</div>';
+    }
+    return `<img src="${logo}" alt="Company Logo" style="max-width: 100%; max-height: 64px; object-fit: contain;" />`;
   }
 
   /**

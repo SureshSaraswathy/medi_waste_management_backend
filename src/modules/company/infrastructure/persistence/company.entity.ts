@@ -166,4 +166,17 @@ export class CompanyEntity {
 
   @Column({ type: 'text', name: 'qr_code', nullable: true })
   qrCode?: string | null;
+
+  // Company Logo (file lives on disk under UPLOAD_DIR; only the relative path is stored).
+  // IMPORTANT: these columns MUST stay mapped here. With synchronize enabled (development), TypeORM
+  // drops any column that no entity maps, which previously removed them on backend restart.
+  // They must match migrations/add_logo_support.sql exactly (checked by company.entity.logo-columns.spec.ts).
+  @Column({ type: 'varchar', length: 500, name: 'logo_path', nullable: true })
+  logoPath?: string | null;
+
+  @Column({ type: 'varchar', length: 50, name: 'logo_mime', nullable: true })
+  logoMime?: string | null;
+
+  @Column({ type: 'timestamp', name: 'logo_updated_at', nullable: true })
+  logoUpdatedAt?: Date | null;
 }

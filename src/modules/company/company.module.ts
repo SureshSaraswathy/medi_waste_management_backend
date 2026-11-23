@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { StorageModule } from '../../common/storage/storage.module';
+import { CompanyLogoService } from './application/services/company-logo.service';
 
 // Infrastructure
 import { CompanyEntity } from './infrastructure/persistence/company.entity';
@@ -26,6 +28,7 @@ import { CompanyController } from './presentation/company.controller';
   imports: [
     TypeOrmModule.forFeature([CompanyEntity], 'master'),
     AuthModule,
+    StorageModule,
   ],
   controllers: [CompanyController],
   providers: [
@@ -39,9 +42,11 @@ import { CompanyController } from './presentation/company.controller';
     GetAllCompaniesUseCase,
     UpdateCompanyUseCase,
     DeleteCompanyUseCase,
+    CompanyLogoService,
   ],
   exports: [
     COMPANY_REPOSITORY_TOKEN,
+    CompanyLogoService,
   ],
 })
 export class CompanyModule {}
