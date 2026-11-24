@@ -12,6 +12,9 @@ import {
 @Index(['authority'], { where: 'is_deleted = false' })
 @Index(['status'], { where: 'is_deleted = false' })
 @Index(['expiryDate'], { where: 'is_deleted = false' })
+// Created by migrations/entitlements_006_compliance_register_company.sql. It is declared here too (same name, same partial
+// predicate) so that TypeORM schema synchronization in development recognises it and does not drop it on every restart.
+@Index('idx_compliance_register_company', ['companyId'], { where: 'is_deleted = false' })
 export class ComplianceRegisterEntity {
   @PrimaryColumn({ type: 'uuid', name: 'id' })
   id: string;

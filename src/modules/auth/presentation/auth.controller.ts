@@ -401,48 +401,28 @@ export class AuthController {
           visible: true,
           permission: 'DASHBOARD_VIEW',
         },
+        // The module-level "visible" flags below use EXACTLY the permissions that open each module's hub page in the web app
+        // (frontend utils/modulePermissions.ts = the hub route guards). A narrower page permission (INVOICE_VIEW, CONTRACT_VIEW,
+        // ROUTE_ASSIGNMENT_VIEW, USER_VIEW, COMPANY_VIEW, ...) does not make the module appear. test/entitlements/contract-test.js
+        // fails if these lists drift from the frontend. Submenu flags and the response shape are unchanged.
         transaction: {
-          visible: hasAny([
-            'MENU_TRANSACTION_VIEW',
-            'ROUTE_ASSIGNMENT_VIEW',
-            'BARCODE_LABEL_VIEW',
-            'WASTE_COLLECTION_VIEW',
-            'WASTE_TRANSACTION_VIEW',
-            'VEHICLE_WASTE_COLLECTION_VIEW',
-            'WASTE_PROCESS_VIEW',
-          ]),
+          visible: hasAny(['MENU_TRANSACTION_VIEW', 'MENU_TRANSACTION.VIEW']),
           permission: 'MENU_TRANSACTION_VIEW',
         },
         finance: {
-          visible: hasAny(['FINANCE_VIEW', 'MENU_FINANCE_VIEW', 'INVOICE_VIEW']),
+          visible: hasAny(['MENU_FINANCE_VIEW', 'MENU_FINANCE.VIEW', 'FINANCE_VIEW', 'FINANCE.VIEW']),
           permission: 'FINANCE_VIEW',
         },
         commercialAgreements: {
-          visible: hasAny(['MENU_COMMERCIAL_VIEW', 'CONTRACT_VIEW', 'AGREEMENT_VIEW', 'AGREEMENT_CLAUSE_VIEW']),
+          visible: hasAny(['MENU_COMMERCIAL_VIEW', 'MENU_COMMERCIAL.VIEW']),
           permission: 'MENU_COMMERCIAL_VIEW',
         },
         complianceTraining: {
-          visible: hasAny(['MENU_COMPLIANCE_VIEW', 'TRAINING_CERTIFICATE_VIEW']),
+          visible: hasAny(['MENU_COMPLIANCE_VIEW', 'MENU_COMPLIANCE.VIEW']),
           permission: 'MENU_COMPLIANCE_VIEW',
         },
         master: {
-          visible: hasAny([
-            'MENU_MASTER_VIEW',
-            'COMPANY_VIEW',
-            'STATE_VIEW',
-            'AREA_VIEW',
-            'CATEGORY_VIEW',
-            'COLOR_VIEW',
-            'PCB_ZONE_VIEW',
-            'FREQUENCY_VIEW',
-            'HCF_TYPE_VIEW',
-            'HCF_VIEW',
-            'ROUTE_VIEW',
-            'FLEET_VIEW',
-            'ROUTE_HCF_VIEW',
-            'USER_VIEW',
-            'ROLE_VIEW',
-          ]),
+          visible: hasAny(['MENU_MASTER_VIEW', 'MENU_MASTER.VIEW', 'MASTERS_VIEW', 'MASTERS.VIEW', 'MASTER_VIEW', 'MASTER.VIEW']),
           permission: 'MENU_MASTER_VIEW',
           submenus: {
             company: {
@@ -496,7 +476,7 @@ export class AuthController {
           },
         },
         report: {
-          visible: hasAny(['MENU_REPORTS_VIEW', 'REPORTS_VIEW']),
+          visible: hasAny(['MENU_REPORTS_VIEW', 'MENU_REPORTS.VIEW', 'REPORTS_VIEW', 'REPORTS.VIEW']),
           permission: 'MENU_REPORTS_VIEW',
         },
       };
